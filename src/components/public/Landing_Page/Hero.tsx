@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom"
+
 const Hero = () => {
+  const navigate = useNavigate()
+
   return (
     <section className="hero">
       <div className="badge">
@@ -15,7 +19,7 @@ const Hero = () => {
         people, goals, and workflows all in one place.
       </p>
       <div className="hero-btns">
-        <button className="btn-large primary" type="button">Start Free — No Card Needed</button>
+        <button className="btn-large primary" type="button" onClick={()=>{navigate('/register')}}>Start Free — No Card Needed</button>
         <button className="btn-large ghost" type="button">Watch Demo →</button>
       </div>
     </section>

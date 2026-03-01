@@ -5,7 +5,10 @@ const RegisterForm = () => {
       <p>No credit card required.</p>
       <form className="register-form" onSubmit={(event) => event.preventDefault()}>
         <label htmlFor="fullName">Full name</label>
-        <input id="fullName" name="fullName" type="text" placeholder="Jane Founder" />
+        <input id="fullName" name="fullName" type="text" placeholder="Founder Name" />
+        
+        <label htmlFor="companyName">Company Name</label>
+        <input id="companyName" name="companyName" type="text" placeholder="Company Name" />
 
         <label htmlFor="workEmail">Work email</label>
         <input id="workEmail" name="workEmail" type="email" placeholder="you@startup.com" />
