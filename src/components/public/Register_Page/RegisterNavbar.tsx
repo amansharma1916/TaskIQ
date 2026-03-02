@@ -12,7 +12,7 @@ const RegisterNavbar = () => {
         <a href="#">Docs</a>
       </div>
       <div className="nav-cta">
-        <button className="btn-ghost" type="button">Log In</button>
+        <Link to="/login" className="btn-ghost login-link-btn">Log In</Link>
         
       </div>
     </nav>
