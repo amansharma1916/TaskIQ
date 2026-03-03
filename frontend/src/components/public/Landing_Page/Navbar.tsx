@@ -13,7 +13,9 @@ const Navbar = () => {
         <a href="#">Docs</a>
       </div>
       <div className="nav-cta">
-        <button className="btn-ghost" type="button">Log In</button>
+        <button className="btn-ghost" type="button" onClick={() => navigate('/login')}>
+          Log In
+        </button>
         <button
           className="btn-primary"
           type="button"

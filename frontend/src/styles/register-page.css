@@ -90,6 +90,57 @@
   width: 100%;
 }
 
+.login-form {
+  gap: 10px;
+}
+
+.login-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.login-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.login-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cyan);
+}
+
+.login-link {
+  color: var(--cyan);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+.login-footnote {
+  margin-top: 16px;
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+.login-footnote a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+.login-footnote a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 960px) {
   .register-shell {
     grid-template-columns: 1fr;
