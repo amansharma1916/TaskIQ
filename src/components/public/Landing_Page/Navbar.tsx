@@ -13,7 +13,7 @@ const Navbar = () => {
         <a href="#">Docs</a>
       </div>
       <div className="nav-cta">
-        <a href="/login" className="btn-ghost login-link-btn">Log In</a>
+        <button className="btn-ghost" type="button">Log In</button>
         <button
           className="btn-primary"
           type="button"
