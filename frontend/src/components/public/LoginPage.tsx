@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom'
 import BackgroundEffects from './Landing_Page/BackgroundEffects'
+import LoginForm from './Login_Page/LoginForm'
+import LoginNavbar from './Login_Page/LoginNavbar'
 import '../../styles/landing-page.css'
 import '../../styles/register-page.css'
 
@@ -7,22 +8,7 @@ const LoginPage = () => {
   return (
     <>
       <BackgroundEffects />
-      <nav>
-        <Link to="/" className="logo">
-          Task<span>IQ</span>
-        </Link>
-        <div className="nav-links">
-          <a href="/#features">Features</a>
-          <a href="/#how">How It Works</a>
-          <a href="/#pricing">Pricing</a>
-          <a href="#">Docs</a>
-        </div>
-        <div className="nav-cta">
-          <Link className="btn-ghost" to="/register">
-            Create Account
-          </Link>
-        </div>
-      </nav>
+      <LoginNavbar />
 
       <main className="register-main">
         <section className="register-shell">
@@ -35,44 +21,7 @@ const LoginPage = () => {
             </p>
           </div>
 
-          <div className="register-card">
-            <h2>Log in to your account</h2>
-            <p>Use your work email and password to continue.</p>
-            <form className="register-form login-form" onSubmit={(event) => event.preventDefault()}>
-              <label htmlFor="workEmail">Work email</label>
-              <input
-                id="workEmail"
-                name="workEmail"
-                type="email"
-                placeholder="you@company.com"
-              />
-
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Enter your password"
-              />
-
-              <div className="login-row">
-                <label className="login-checkbox" htmlFor="remember">
-                  <input id="remember" name="remember" type="checkbox" />
-                  Remember me
-                </label>
-                <a className="login-link" href="#">
-                  Forgot password?
-                </a>
-              </div>
-
-              <button className="btn-large primary register-submit" type="submit">
-                Log In
-              </button>
-            </form>
-            <p className="login-footnote">
-              New to TaskIQ? <Link to="/register">Create a free workspace</Link>
-            </p>
-          </div>
+          <LoginForm />
         </section>
       </main>
     </>
