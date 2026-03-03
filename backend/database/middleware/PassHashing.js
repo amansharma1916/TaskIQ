@@ -11,17 +11,12 @@ const resolveSaltRounds = () => {
 };
 
 const attachPasswordHashing = (schema) => {
-	schema.pre("save", async function passwordHashing(next) {
+	schema.pre("save", async function passwordHashing() {
 		if (!this.isModified("password")) {
-			return next();
+			return;
 		}
 
-		try {
-			this.password = await bcrypt.hash(this.password, resolveSaltRounds());
-			return next();
-		} catch (error) {
-			return next(error);
-		}
+		this.password = await bcrypt.hash(this.password, resolveSaltRounds());
 	});
 };
 

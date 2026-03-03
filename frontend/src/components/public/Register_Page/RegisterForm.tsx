@@ -17,10 +17,32 @@ const RegisterForm = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(formData);
-    // Handle form submission
+    try {
+      const payload = {
+        name: formData.fullName,
+        companyName: formData.companyName,
+        workEmail: formData.workEmail,
+        teamSize: formData.teamSize,
+        password: formData.password,
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to register: ${response.status}`);
+      }
+      const result = await response.json();
+      console.log('Registration successful:', result);
+    } catch (error) {
+      console.error('Registration error:', error);
+    }
   };
 
   return (
