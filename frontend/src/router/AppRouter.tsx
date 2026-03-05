@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import LandingPage from '../components/public/LandingPage'
 import RegisterPage from '../components/public/RegisterPage'
 import LoginPage from '../components/public/LoginPage'
+import Dashboard_CEO from '../components/user/CEOs/Dashboard_CEO'
 
 const router = createBrowserRouter([
   {
@@ -15,6 +16,10 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/ceo/dashboard',
+    element: <Dashboard_CEO />,
   },
 ])
 
