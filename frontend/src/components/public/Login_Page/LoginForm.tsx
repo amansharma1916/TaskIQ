@@ -59,12 +59,10 @@ const LoginForm = () => {
       setSuccessMessage('Login successful! Redirecting...')
       console.log('Login successful:', result)
       
-      // Store user data in localStorage
       localStorage.setItem('user', JSON.stringify(result.user))
       
-      // Redirect to home page after successful login
       setTimeout(() => {
-        navigate('/home')
+        navigate('/ceo/dashboard')
       }, 1500)
       
     } catch (error: unknown) {
