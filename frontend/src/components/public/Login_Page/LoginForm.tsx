@@ -1,12 +1,16 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const LoginForm = () => {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     workEmail: '',
     password: '',
     remember: false,
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = event.target
@@ -14,11 +18,62 @@ const LoginForm = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }))
+    if (errorMessage) {
+      setErrorMessage('')
+    }
+    if (successMessage) {
+      setSuccessMessage('')
+    }
   }
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    console.log(formData)
+    setErrorMessage('')
+    setSuccessMessage('')
+
+    if (!formData.workEmail || !formData.password) {
+      setErrorMessage('Please fill all required fields.')
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workEmail: formData.workEmail,
+          password: formData.password,
+        }),
+      })
+
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(result?.message || `Login failed: ${response.status}`)
+      }
+
+      setSuccessMessage('Login successful! Redirecting...')
+      console.log('Login successful:', result)
+      
+      // Store user data in localStorage
+      localStorage.setItem('user', JSON.stringify(result.user))
+      
+      // Redirect to home page after successful login
+      setTimeout(() => {
+        navigate('/home')
+      }, 1500)
+      
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Login failed. Please try again.'
+      setErrorMessage(message)
+      console.error('Login error:', error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -26,6 +81,13 @@ const LoginForm = () => {
       <h2>Log in to your account</h2>
       <p>Use your work email and password to continue.</p>
       <form className="register-form login-form" onSubmit={handleSubmit}>
+        {errorMessage && (
+          <p className="form-message form-error" role="alert">{errorMessage}</p>
+        )}
+        {successMessage && (
+          <p className="form-message form-success" role="status">{successMessage}</p>
+        )}
+        
         <label htmlFor="workEmail">Work email</label>
         <input
           id="workEmail"
@@ -62,8 +124,12 @@ const LoginForm = () => {
           </a>
         </div>
 
-        <button className="btn-large primary register-submit" type="submit">
-          Log In
+        <button 
+          className="btn-large primary register-submit" 
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Logging in...' : 'Log In'}
         </button>
       </form>
       <p className="login-footnote">
