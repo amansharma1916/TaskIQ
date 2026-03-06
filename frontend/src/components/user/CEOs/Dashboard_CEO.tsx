@@ -139,6 +139,7 @@ const Dashboard_CEO = () => {
 	})
 	const [addMemberError, setAddMemberError] = useState('')
 	const [isAddingMember, setIsAddingMember] = useState(false)
+	const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
 		const map: Record<string, boolean> = {}
 		for (const item of [...ceoDashboardData.todayTasks, ...ceoDashboardData.allTasks]) {
@@ -244,6 +245,18 @@ const Dashboard_CEO = () => {
 		}
 	}, [expandedTeamId, teamMemberGroups])
 
+	useEffect(() => {
+		if (!actionAlert) {
+			return
+		}
+
+		const timer = setTimeout(() => {
+			setActionAlert(null)
+		}, 3500)
+
+		return () => clearTimeout(timer)
+	}, [actionAlert])
+
 	const toggleTask = (taskId: string) => {
 		setTaskState((prev) => ({ ...prev, [taskId]: !prev[taskId] }))
 	}
@@ -314,9 +327,11 @@ const Dashboard_CEO = () => {
 			await fetchTeamsAndMembers()
 			setActivePanel('teams')
 			closeModal()
+			setActionAlert({ type: 'success', message: 'Team created successfully.' })
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to create team. Please try again.'
 			setCreateTeamError(message)
+			setActionAlert({ type: 'error', message })
 		} finally {
 			setIsCreatingTeam(false)
 		}
@@ -357,9 +372,11 @@ const Dashboard_CEO = () => {
 			}
 
 			closeModal()
+			setActionAlert({ type: 'success', message: 'Invite sent successfully.' })
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to send invite. Please try again.'
 			setInviteError(message)
+			setActionAlert({ type: 'error', message })
 		} finally {
 			setIsSendingInvite(false)
 		}
@@ -399,9 +416,11 @@ const Dashboard_CEO = () => {
 
 			await fetchTeamsAndMembers()
 			closeModal()
+			setActionAlert({ type: 'success', message: 'Member added to team successfully.' })
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to add member. Please try again.'
 			setAddMemberError(message)
+			setActionAlert({ type: 'error', message })
 		} finally {
 			setIsAddingMember(false)
 		}
@@ -526,6 +545,15 @@ const Dashboard_CEO = () => {
 						</button>
 					</div>
 				</header>
+
+				{actionAlert && (
+					<div className={`ceo-action-alert ${actionAlert.type === 'success' ? 'success' : 'error'}`} role="status">
+						<span>{actionAlert.message}</span>
+						<button aria-label="Dismiss alert" onClick={() => setActionAlert(null)} type="button">
+							X
+						</button>
+					</div>
+				)}
 
 				<section className="ceo-content">
 					<div className={`ceo-panel ${activePanel === 'dashboard' ? 'active' : ''}`}>

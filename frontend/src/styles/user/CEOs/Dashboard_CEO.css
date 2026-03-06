@@ -250,6 +250,40 @@
 	gap: 10px;
 }
 
+.ceo-action-alert {
+	margin: 14px 24px 0;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	font-size: 0.86rem;
+	animation: ceoFadeUp 0.2s ease;
+}
+
+.ceo-action-alert.success {
+	background: rgba(74, 222, 128, 0.14);
+	border-color: rgba(74, 222, 128, 0.45);
+	color: #b7f7cf;
+}
+
+.ceo-action-alert.error {
+	background: rgba(248, 113, 113, 0.12);
+	border-color: rgba(248, 113, 113, 0.45);
+	color: #ffd1d1;
+}
+
+.ceo-action-alert button {
+	border: 0;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font-weight: 700;
+	padding: 0 4px;
+}
+
 .ceo-content {
 	flex: 1;
 	overflow-y: auto;
