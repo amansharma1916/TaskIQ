@@ -65,6 +65,37 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+router.delete("/:id", async (req, res) => {
+  try {
+    const { companyId } = req.query;
+
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId query param is required" });
+    }
+
+    const team = await Teams.findById(req.params.id);
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    if (!team.companyId) {
+      team.companyId = companyId;
+      await team.save();
+    }
+
+    if (String(team.companyId) !== String(companyId)) {
+      return res.status(403).json({ message: "Team not in this company" });
+    }
+
+    await Members.updateMany({ memberTeam: team._id }, { $set: { memberTeam: null } });
+    await Teams.findByIdAndDelete(team._id);
+
+    return res.json({ message: "Team disbanded successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
 router.post("/add-member", async (req, res) => {
   try {
     const { memberId, teamId, companyId } = req.body;
@@ -99,6 +130,10 @@ router.post("/add-member", async (req, res) => {
 
     if (member.companyId && team.companyId && String(member.companyId) !== String(team.companyId)) {
       return res.status(403).json({ message: "Member not in this company" });
+    }
+
+    if (member.memberTeam && String(member.memberTeam) === String(teamId)) {
+      return res.status(409).json({ message: "Member already in this team" });
     }
 
     if (member.memberTeam && String(member.memberTeam) !== String(teamId)) {
