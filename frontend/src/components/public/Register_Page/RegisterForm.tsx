@@ -52,7 +52,7 @@ const RegisterForm = () => {
         password: formData.password,
       };
 
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/register`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/ceo/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

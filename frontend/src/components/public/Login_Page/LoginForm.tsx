@@ -39,7 +39,7 @@ const LoginForm = () => {
     try {
       setIsSubmitting(true)
 
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/ceo/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

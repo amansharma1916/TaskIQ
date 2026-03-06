@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
 import {
 	ceoDashboardData,
@@ -35,6 +36,41 @@ const progressToneClassMap = {
 	green: 'ceo-fill-green',
 	yellow: 'ceo-fill-yellow',
 } as const
+
+type ApiMember = {
+	_id: string
+	memberName: string
+	memberRole?: string
+	memberTeam?: {
+		_id: string
+		teamName?: string
+	} | null
+}
+
+type ApiTeam = {
+	_id: string
+	teamName: string
+	teamDescription?: string
+	teamTags?: string[]
+	totalMembers?: number
+	teamMembers?: Array<{
+		_id: string
+		memberName?: string
+	}>
+}
+
+const avatarTones = ['cyan-purple', 'purple-red', 'yellow-cyan', 'green-purple', 'cyan-green', 'green-cyan', 'muted'] as const
+
+const getInitials = (name: string) => {
+	const parts = name
+		.trim()
+		.split(/\s+/)
+		.filter(Boolean)
+	return parts
+		.slice(0, 2)
+		.map((part) => part[0]?.toUpperCase() ?? '')
+		.join('')
+}
 
 const modalTitles: Record<ModalId, string> = {
 	createTeam: 'Create New Team',
@@ -76,9 +112,20 @@ const ProgressRow = ({ item }: { item: ProgressItem }) => (
 )
 
 const Dashboard_CEO = () => {
+	const navigate = useNavigate()
+	const apiBase = import.meta.env.VITE_BACKEND_URL ?? ''
 	const [activePanel, setActivePanel] = useState<PanelId>('dashboard')
 	const [openModal, setOpenModal] = useState<ModalId | null>(null)
 	const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+	const [teamsData, setTeamsData] = useState(ceoDashboardData.teams)
+	const [membersData, setMembersData] = useState(ceoDashboardData.members)
+	const [createTeamForm, setCreateTeamForm] = useState({
+		teamName: '',
+		teamDescription: '',
+		teamTags: '',
+	})
+	const [createTeamError, setCreateTeamError] = useState('')
+	const [isCreatingTeam, setIsCreatingTeam] = useState(false)
 	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
 		const map: Record<string, boolean> = {}
 		for (const item of [...ceoDashboardData.todayTasks, ...ceoDashboardData.allTasks]) {
@@ -93,21 +140,80 @@ const Dashboard_CEO = () => {
 		}
 		return map
 	})
+
+	const fetchTeamsAndMembers = async () => {
+		try {
+			const [teamsResponse, membersResponse] = await Promise.all([
+				fetch(`${apiBase}/api/teams`),
+				fetch(`${apiBase}/api/members`),
+			])
+
+			if (!teamsResponse.ok || !membersResponse.ok) {
+				throw new Error('Failed to load team/member data')
+			}
+
+			const [teamsJson, membersJson] = (await Promise.all([teamsResponse.json(), membersResponse.json()])) as [ApiTeam[], ApiMember[]]
+
+			const mappedMembers = membersJson.map((member, index) => ({
+				id: member._id,
+				initials: getInitials(member.memberName),
+				name: member.memberName,
+				role: member.memberRole ?? 'Member',
+				team: member.memberTeam?.teamName ?? 'Unassigned',
+				online: true,
+				tone: avatarTones[index % avatarTones.length],
+			}))
+
+			const memberToneById = new Map(mappedMembers.map((member) => [member.id, member.tone]))
+
+			const mappedTeams = teamsJson.map((team, index) => {
+				const teamMembers = team.teamMembers ?? []
+				return {
+					id: team._id,
+					name: team.teamName,
+					description: team.teamDescription ?? 'No team description provided yet.',
+					tag: team.teamTags?.[0] ?? 'Team',
+					members: teamMembers.slice(0, 4).map((member, memberIndex) => ({
+						initials: getInitials(member.memberName ?? 'TM'),
+						tone: memberToneById.get(member._id) ?? avatarTones[(index + memberIndex) % avatarTones.length],
+					})),
+					totalMembers: team.totalMembers ?? teamMembers.length,
+				}
+			})
+
+			setMembersData(mappedMembers)
+			setTeamsData(mappedTeams)
+		} catch (error) {
+			console.error('Using fallback CEO team/member data:', error)
+		}
+	}
+
+	useEffect(() => {
+		void fetchTeamsAndMembers()
+	}, [])
+
 	const teamMemberGroups = useMemo(() => {
-		const groups = ceoDashboardData.teams.map((team) => ({
+		const groups = teamsData.map((team) => ({
 			id: team.id,
 			name: team.name,
-			members: ceoDashboardData.members.filter((member) => member.team === team.name),
+			members: membersData.filter((member) => member.team === team.name),
 		}))
 
-		const unassigned = ceoDashboardData.members.filter((member) => !member.team || member.team === 'Unassigned')
+		const unassigned = membersData.filter((member) => !member.team || member.team === 'Unassigned')
 		if (unassigned.length > 0) {
 			groups.push({ id: 'team-unassigned', name: 'Unassigned', members: unassigned })
 		}
 
 		return groups
-	}, [])
+	}, [teamsData, membersData])
 	const [expandedTeamId, setExpandedTeamId] = useState<string | null>(ceoDashboardData.teams[0]?.id ?? null)
+	const onlineMembers = membersData.slice(0, 4)
+
+	useEffect(() => {
+		if (!expandedTeamId && teamMemberGroups[0]?.id) {
+			setExpandedTeamId(teamMemberGroups[0].id)
+		}
+	}, [expandedTeamId, teamMemberGroups])
 
 	const toggleTask = (taskId: string) => {
 		setTaskState((prev) => ({ ...prev, [taskId]: !prev[taskId] }))
@@ -120,11 +226,60 @@ const Dashboard_CEO = () => {
 
 	const openModalById = (modalId: ModalId) => {
 		setProfileMenuOpen(false)
+		if (modalId === 'createTeam') {
+			setCreateTeamForm({ teamName: '', teamDescription: '', teamTags: '' })
+			setCreateTeamError('')
+		}
 		setOpenModal(modalId)
 	}
 
 	const closeModal = () => {
+		setCreateTeamError('')
 		setOpenModal(null)
+	}
+
+	const handleCreateTeam = async () => {
+		if (!createTeamForm.teamName.trim()) {
+			setCreateTeamError('Team name is required.')
+			return
+		}
+
+		setCreateTeamError('')
+		setIsCreatingTeam(true)
+
+		const parsedTags = createTeamForm.teamTags
+			.split(',')
+			.map((tag) => tag.trim())
+			.filter(Boolean)
+
+		try {
+			const response = await fetch(`${apiBase}/api/teams/create`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					teamName: createTeamForm.teamName.trim(),
+					teamDescription: createTeamForm.teamDescription.trim(),
+					teamTags: parsedTags,
+				}),
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to create team: ${response.status}`)
+			}
+
+			await fetchTeamsAndMembers()
+			setActivePanel('teams')
+			closeModal()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to create team. Please try again.'
+			setCreateTeamError(message)
+		} finally {
+			setIsCreatingTeam(false)
+		}
 	}
 
 	const renderTask = (task: TaskItem, showAssignee: boolean) => {
@@ -165,7 +320,10 @@ const Dashboard_CEO = () => {
 						<button onClick={() => switchPanel('settings')} type="button">
 							Preferences
 						</button>
-						<button onClick={() => setProfileMenuOpen(false)} type="button" className="danger">
+						<button onClick={() => {setProfileMenuOpen(false)
+							localStorage.removeItem('user')
+							navigate('/login')
+						}} type="button" className="danger">
 							Sign Out
 						</button>
 					</div>
@@ -266,7 +424,7 @@ const Dashboard_CEO = () => {
 										All
 									</button>
 								</div>
-								{ceoDashboardData.onlineMembers.map((member) => (
+								{onlineMembers.map((member) => (
 									<div className="ceo-member-row" key={member.id}>
 										<div className={`ceo-member-avatar tone-${member.tone}`}>{member.initials}</div>
 										<div>
@@ -320,7 +478,7 @@ const Dashboard_CEO = () => {
 						</div>
 
 						<article className="ceo-list-card">
-							{ceoDashboardData.teams.map((team) => (
+							{teamsData.map((team) => (
 								<div className="ceo-list-row" key={team.id}>
 									<div className="ceo-list-main">
 										<div className="ceo-list-title-wrap">
@@ -590,29 +748,84 @@ const Dashboard_CEO = () => {
 							</button>
 						</div>
 						<div className="ceo-modal-body">
-							<label>
-								Name
-								<input placeholder="Enter value" type="text" />
-							</label>
-							<label>
-								Description
-								<input placeholder="Add details" type="text" />
-							</label>
-							<label>
-								Selection
-								<select>
-									<option>Option 1</option>
-									<option>Option 2</option>
-									<option>Option 3</option>
-								</select>
-							</label>
+							{openModal === 'createTeam' ? (
+								<>
+									{createTeamError && <p className="form-message form-error">{createTeamError}</p>}
+									<label>
+										Team Name
+										<input
+											placeholder="e.g. Engineering"
+											type="text"
+											value={createTeamForm.teamName}
+											onChange={(event) =>
+												setCreateTeamForm((prev) => ({
+													...prev,
+													teamName: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<label>
+										Description
+										<input
+											placeholder="What this team works on"
+											type="text"
+											value={createTeamForm.teamDescription}
+											onChange={(event) =>
+												setCreateTeamForm((prev) => ({
+													...prev,
+													teamDescription: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<label>
+										Tags
+										<input
+											placeholder="Build, Product, Growth"
+											type="text"
+											value={createTeamForm.teamTags}
+											onChange={(event) =>
+												setCreateTeamForm((prev) => ({
+													...prev,
+													teamTags: event.target.value,
+												}))
+											}
+										/>
+									</label>
+								</>
+							) : (
+								<>
+									<label>
+										Name
+										<input placeholder="Enter value" type="text" />
+									</label>
+									<label>
+										Description
+										<input placeholder="Add details" type="text" />
+									</label>
+									<label>
+										Selection
+										<select>
+											<option>Option 1</option>
+											<option>Option 2</option>
+											<option>Option 3</option>
+										</select>
+									</label>
+								</>
+							)}
 						</div>
 						<div className="ceo-modal-actions">
 							<button className="ceo-btn-outline" onClick={closeModal} type="button">
 								Cancel
 							</button>
-							<button className="ceo-btn-primary" onClick={closeModal} type="button">
-								Confirm
+							<button
+								className="ceo-btn-primary"
+								onClick={openModal === 'createTeam' ? () => void handleCreateTeam() : closeModal}
+								type="button"
+								disabled={openModal === 'createTeam' && isCreatingTeam}
+							>
+								{openModal === 'createTeam' ? (isCreatingTeam ? 'Creating...' : 'Create Team') : 'Confirm'}
 							</button>
 						</div>
 					</div>

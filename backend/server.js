@@ -2,7 +2,9 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './database/db_connect.js';
-import authRoutes from './routes/authRoutes.js';
+import UsersAuthRoutes from './routes/UsersAuthRoutes.js';
+import TeamsRoute from './routes/TeamsRoute.js';
+import MembersRoute from './routes/MembersRoutes.js';
 
 dotenv.config();
 
@@ -23,7 +25,10 @@ app.get('/', (req, res) => {
     res.send('Welcome to TaskIQ API');
 });
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth/users', UsersAuthRoutes);
+app.use('/api/auth/ceo', UsersAuthRoutes);
+app.use('/api/teams', TeamsRoute);
+app.use('/api/members', MembersRoute);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
