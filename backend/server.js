@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './database/db_connect.js';
-import CEOauthRoutes from './routes/CEOauthRoutes.js';
+import UsersAuthRoutes from './routes/UsersAuthRoutes.js';
 import TeamsRoute from './routes/TeamsRoute.js';
 import MembersRoute from './routes/MembersRoutes.js';
 
@@ -25,7 +25,8 @@ app.get('/', (req, res) => {
     res.send('Welcome to TaskIQ API');
 });
 
-app.use('/api/auth/ceo', CEOauthRoutes);
+app.use('/api/auth/users', UsersAuthRoutes);
+app.use('/api/auth/ceo', UsersAuthRoutes);
 app.use('/api/teams', TeamsRoute);
 app.use('/api/members', MembersRoute);
 

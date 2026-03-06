@@ -1,11 +1,13 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import CEOs from "../database/Schemas/CEOs.js";
+import Users from "../database/Schemas/Users.js";
+import Company from "../database/Schemas/Company.js";
 
 const router = express.Router();
 const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
 
 router.post("/register", async (req, res) => {
+	let createdUserId = null;
 	try {
 		const { name, companyName, workEmail, teamSize, password } = req.body;
 		const normalizedTeamSize =
@@ -23,7 +25,7 @@ router.post("/register", async (req, res) => {
 			});
 		}
 
-		const existingUser = await CEOs.findOne({
+		const existingUser = await Users.findOne({
 			workEmail: String(workEmail).toLowerCase().trim(),
 		});
 
@@ -31,25 +33,39 @@ router.post("/register", async (req, res) => {
 			return res.status(409).json({ message: "Email is already registered" });
 		}
 
-		const createdUser = await CEOs.create({
+		const createdUser = await Users.create({
 			name,
-			companyName,
 			workEmail,
-			teamSize: normalizedTeamSize,
 			password,
+			role: "CEO",
 		});
+		createdUserId = createdUser._id;
+
+		const company = await Company.create({
+			companyName,
+			owner: createdUser._id,
+			teamSize: normalizedTeamSize ?? "1-10",
+		});
+
+		createdUser.companyId = company._id;
+		await createdUser.save();
 
 		return res.status(201).json({
 			message: "User registered successfully",
 			user: {
 				id: createdUser._id,
 				name: createdUser.name,
-				companyName: createdUser.companyName,
+				companyId: createdUser.companyId,
+				companyName: company.companyName,
 				workEmail: createdUser.workEmail,
-				teamSize: createdUser.teamSize,
+				teamSize: company.teamSize,
+				role: createdUser.role,
 			},
 		});
 	} catch (error) {
+		if (createdUserId) {
+			await Users.findByIdAndDelete(createdUserId).catch(() => null);
+		}
 		return res.status(500).json({ message: error.message });
 	}
 });
@@ -64,9 +80,11 @@ router.post("/login", async (req, res) => {
 			});
 		}
 
-		const user = await CEOs.findOne({
+		const user = await Users.findOne({
 			workEmail: String(workEmail).toLowerCase().trim(),
-		}).select("+password");
+		})
+			.select("+password")
+			.populate("companyId");
 
 		if (!user) {
 			return res.status(401).json({ message: "Invalid credentials" });
@@ -83,9 +101,10 @@ router.post("/login", async (req, res) => {
 			user: {
 				id: user._id,
 				name: user.name,
-				companyName: user.companyName,
+				companyId: user.companyId?._id ?? null,
+				companyName: user.companyId?.companyName ?? null,
 				workEmail: user.workEmail,
-				teamSize: user.teamSize,
+				teamSize: user.companyId?.teamSize ?? null,
 				role: user.role,
 			},
 		});
@@ -93,6 +112,5 @@ router.post("/login", async (req, res) => {
 		return res.status(500).json({ message: error.message });
 	}
 });
-
 
 export default router;

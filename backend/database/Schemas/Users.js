@@ -1,12 +1,9 @@
 import mongoose from "mongoose";
 import attachPasswordHashing from "../middleware/PassHashing.js";
 
-const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
-
-const CEOsSchema = new mongoose.Schema(
+const UsersSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 100 },
-    companyName: { type: String, required: true, trim: true, maxlength: 150 },
     workEmail: {
       type: String,
       required: true,
@@ -16,13 +13,11 @@ const CEOsSchema = new mongoose.Schema(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
     },
-    teamSize: {
-      type: String,
-      enum: TEAM_SIZE_RANGES,
-      default: "1-10",
-      trim: true,
-    },
     password: { type: String, required: true, minlength: 8, select: false },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+    },
     role: {
       type: String,
       enum: ["CEO", "Manager", "Employee"],
@@ -31,14 +26,14 @@ const CEOsSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, 
+    timestamps: true,
   }
 );
 
-attachPasswordHashing(CEOsSchema);
+attachPasswordHashing(UsersSchema);
 
-const CEOs =
-  mongoose.models.CEOs ??
-  mongoose.model("CEOs", CEOsSchema);
+const Users =
+  mongoose.models.Users ??
+  mongoose.model("Users", UsersSchema);
 
-export default CEOs;
+export default Users;
