@@ -3,7 +3,7 @@ import attachPasswordHashing from "../middleware/PassHashing.js";
 
 const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
 
-const RegisteredUsersSchema = new mongoose.Schema(
+const CEOsSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 100 },
     companyName: { type: String, required: true, trim: true, maxlength: 150 },
@@ -23,16 +23,22 @@ const RegisteredUsersSchema = new mongoose.Schema(
       trim: true,
     },
     password: { type: String, required: true, minlength: 8, select: false },
+    role: {
+      type: String,
+      enum: ["CEO", "Manager", "Employee"],
+      default: "CEO",
+      trim: true,
+    },
   },
   {
     timestamps: true, 
   }
 );
 
-attachPasswordHashing(RegisteredUsersSchema);
+attachPasswordHashing(CEOsSchema);
 
-const RegisteredUsers =
-  mongoose.models.RegisteredUsers ??
-  mongoose.model("RegisteredUsers", RegisteredUsersSchema);
+const CEOs =
+  mongoose.models.CEOs ??
+  mongoose.model("CEOs", CEOsSchema);
 
-export default RegisteredUsers;
+export default CEOs;

@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import RegisteredUsers from "../database/Schemas/Registered_Users.js";
+import CEOs from "../database/Schemas/CEOs.js";
 
 const router = express.Router();
 const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
@@ -23,7 +23,7 @@ router.post("/register", async (req, res) => {
 			});
 		}
 
-		const existingUser = await RegisteredUsers.findOne({
+		const existingUser = await CEOs.findOne({
 			workEmail: String(workEmail).toLowerCase().trim(),
 		});
 
@@ -31,7 +31,7 @@ router.post("/register", async (req, res) => {
 			return res.status(409).json({ message: "Email is already registered" });
 		}
 
-		const createdUser = await RegisteredUsers.create({
+		const createdUser = await CEOs.create({
 			name,
 			companyName,
 			workEmail,
@@ -64,7 +64,7 @@ router.post("/login", async (req, res) => {
 			});
 		}
 
-		const user = await RegisteredUsers.findOne({
+		const user = await CEOs.findOne({
 			workEmail: String(workEmail).toLowerCase().trim(),
 		}).select("+password");
 
@@ -86,6 +86,7 @@ router.post("/login", async (req, res) => {
 				companyName: user.companyName,
 				workEmail: user.workEmail,
 				teamSize: user.teamSize,
+				role: user.role,
 			},
 		});
 	} catch (error) {
