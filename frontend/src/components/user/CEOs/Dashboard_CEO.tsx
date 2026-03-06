@@ -139,6 +139,7 @@ const Dashboard_CEO = () => {
 	})
 	const [addMemberError, setAddMemberError] = useState('')
 	const [isAddingMember, setIsAddingMember] = useState(false)
+	const [teamOptionsOpenFor, setTeamOptionsOpenFor] = useState<string | null>(null)
 	const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
 		const map: Record<string, boolean> = {}
@@ -257,6 +258,30 @@ const Dashboard_CEO = () => {
 		return () => clearTimeout(timer)
 	}, [actionAlert])
 
+	useEffect(() => {
+		if (!teamOptionsOpenFor) {
+			return
+		}
+
+		const handleOutsideClick = (event: MouseEvent) => {
+			const target = event.target as HTMLElement | null
+			if (!target) {
+				return
+			}
+
+			if (target.closest('.ceo-team-options-wrap')) {
+				return
+			}
+
+			setTeamOptionsOpenFor(null)
+		}
+
+		document.addEventListener('mousedown', handleOutsideClick)
+		return () => {
+			document.removeEventListener('mousedown', handleOutsideClick)
+		}
+	}, [teamOptionsOpenFor])
+
 	const toggleTask = (taskId: string) => {
 		setTaskState((prev) => ({ ...prev, [taskId]: !prev[taskId] }))
 	}
@@ -264,6 +289,7 @@ const Dashboard_CEO = () => {
 	const switchPanel = (panel: PanelId) => {
 		setActivePanel(panel)
 		setProfileMenuOpen(false)
+		setTeamOptionsOpenFor(null)
 	}
 
 	const openModalById = (modalId: ModalId, presetTeamId?: string) => {
@@ -288,6 +314,31 @@ const Dashboard_CEO = () => {
 		setInviteError('')
 		setAddMemberError('')
 		setOpenModal(null)
+	}
+
+	const handleDisbandTeam = async (teamId: string) => {
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			const response = await fetch(`${apiBase}/api/teams/${teamId}?companyId=${encodeURIComponent(companyId)}`, {
+				method: 'DELETE',
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to disband team: ${response.status}`)
+			}
+
+			setTeamOptionsOpenFor(null)
+			await fetchTeamsAndMembers()
+			setActionAlert({ type: 'success', message: 'Team disbanded successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to disband team. Please try again.'
+			setActionAlert({ type: 'error', message })
+		}
 	}
 
 	const handleCreateTeam = async () => {
@@ -653,8 +704,24 @@ const Dashboard_CEO = () => {
 											Add Member
 										</button>
 										<button className="ceo-btn-danger" onClick={() => openModalById('revokeMember')} type="button">
-											Revoke
+											Revoke Member
 										</button>
+										<div className="ceo-team-options-wrap">
+											<button
+												className="ceo-btn-outline"
+												onClick={() => setTeamOptionsOpenFor((prev) => (prev === team.id ? null : team.id))}
+												type="button"
+											>
+												☰
+											</button>
+											{teamOptionsOpenFor === team.id && (
+												<div className="ceo-team-options-menu">
+													<button className="ceo-btn-danger" onClick={() => void handleDisbandTeam(team.id)} type="button">
+														Disband Team
+													</button>
+												</div>
+											)}
+										</div>
 									</div>
 								</div>
 							))}

@@ -1153,6 +1153,31 @@
 	justify-content: flex-end;
 	flex-wrap: wrap;
 	margin-left: auto;
+	position: relative;
+}
+
+.ceo-team-options-wrap {
+	position: relative;
+}
+
+.ceo-team-options-menu {
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 20;
+	display: flex;
+	min-width: 170px;
+	padding: 8px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: var(--bg3);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.ceo-team-options-menu .ceo-btn-danger {
+	width: 100%;
+	text-align: center;
+	justify-content: center;
 }
 
 .ceo-list-main-project {
