@@ -6,7 +6,8 @@ import Home from '../components/private/Home'
 import ProtectRoute from '../protection/ProtectRoute'
 import RoleRender from '../protection/RoleRender'
 
-const role = localStorage.getItem('user') ? "Manager" : "CEO"
+const user = localStorage.getItem('user')
+const role = user ? JSON.parse(user).role : null
 
 const router = createBrowserRouter([
   {
