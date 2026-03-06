@@ -7,18 +7,28 @@ const router = express.Router();
 router.post("/add", async (req, res) => {
   try {
 
-    const { memberName, memberRole, teamId } = req.body;
+    const { memberName, memberRole, teamId, userId, companyId } = req.body;
+
+    let resolvedCompanyId = companyId || null;
+    if (teamId && !resolvedCompanyId) {
+      const team = await Teams.findById(teamId);
+      resolvedCompanyId = team?.companyId ?? null;
+    }
 
     const member = await Members.create({
       memberName,
       memberRole,
-      memberTeam: teamId
+      memberTeam: teamId || null,
+      userId: userId || null,
+      companyId: resolvedCompanyId,
     });
 
-    await Teams.findByIdAndUpdate(teamId, {
-      $push: { teamMembers: member._id },
-      $inc: { totalMembers: 1 }
-    });
+    if (teamId) {
+      await Teams.findByIdAndUpdate(teamId, {
+        $push: { teamMembers: member._id },
+        $inc: { totalMembers: 1 }
+      });
+    }
 
     res.status(201).json(member);
 
@@ -29,8 +39,13 @@ router.post("/add", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
+    const { companyId } = req.query;
 
-    const members = await Members.find().populate("memberTeam");
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId query param is required" });
+    }
+
+    const members = await Members.find({ companyId }).populate("memberTeam");
 
     res.json(members);
 
@@ -46,10 +61,12 @@ router.delete("/:id", async (req, res) => {
 
     if (!member) return res.status(404).json({ message: "Member not found" });
 
-    await Teams.findByIdAndUpdate(member.memberTeam, {
-      $pull: { teamMembers: member._id },
-      $inc: { totalMembers: -1 }
-    });
+    if (member.memberTeam) {
+      await Teams.findByIdAndUpdate(member.memberTeam, {
+        $pull: { teamMembers: member._id },
+        $inc: { totalMembers: -1 }
+      });
+    }
 
     res.json({ message: "Member removed" });
 

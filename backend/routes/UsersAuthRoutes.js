@@ -156,6 +156,8 @@ router.post("/register-with-invite", async (req, res) => {
 		const member = await Members.create({
 			memberName: name,
 			memberRole: invite.role,
+			userId: user._id,
+			companyId: invite.companyId,
 		});
 		createdMemberId = member._id;
 

@@ -9,12 +9,23 @@ const MemberSchema = new mongoose.Schema(
 
   memberRole: {
     type: String,
-    default: "member"
+    enum: ["Manager", "Employee"],
+    default: "Employee"
   },
 
   memberTeam: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Teams"
+  },
+
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Users"
+  },
+
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company"
   }
 
 },
