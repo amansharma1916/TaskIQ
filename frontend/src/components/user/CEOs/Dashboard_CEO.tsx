@@ -126,6 +126,19 @@ const Dashboard_CEO = () => {
 	})
 	const [createTeamError, setCreateTeamError] = useState('')
 	const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+	const [inviteForm, setInviteForm] = useState({
+		name: '',
+		email: '',
+		role: 'Employee' as 'Manager' | 'Employee',
+	})
+	const [inviteError, setInviteError] = useState('')
+	const [isSendingInvite, setIsSendingInvite] = useState(false)
+	const [addMemberForm, setAddMemberForm] = useState({
+		teamId: '',
+		memberId: '',
+	})
+	const [addMemberError, setAddMemberError] = useState('')
+	const [isAddingMember, setIsAddingMember] = useState(false)
 	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
 		const map: Record<string, boolean> = {}
 		for (const item of [...ceoDashboardData.todayTasks, ...ceoDashboardData.allTasks]) {
@@ -143,9 +156,13 @@ const Dashboard_CEO = () => {
 
 	const fetchTeamsAndMembers = async () => {
 		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user')
+			}
+
 			const [teamsResponse, membersResponse] = await Promise.all([
-				fetch(`${apiBase}/api/teams`),
-				fetch(`${apiBase}/api/members`),
+				fetch(`${apiBase}/api/teams?companyId=${encodeURIComponent(companyId)}`),
+				fetch(`${apiBase}/api/members?companyId=${encodeURIComponent(companyId)}`),
 			])
 
 			if (!teamsResponse.ok || !membersResponse.ok) {
@@ -208,6 +225,18 @@ const Dashboard_CEO = () => {
 	}, [teamsData, membersData])
 	const [expandedTeamId, setExpandedTeamId] = useState<string | null>(ceoDashboardData.teams[0]?.id ?? null)
 	const onlineMembers = membersData.slice(0, 4)
+	const companyId = (() => {
+		try {
+			const userRaw = localStorage.getItem('user')
+			if (!userRaw) {
+				return null
+			}
+			const parsed = JSON.parse(userRaw) as { companyId?: string | null }
+			return parsed.companyId ?? null
+		} catch {
+			return null
+		}
+	})()
 
 	useEffect(() => {
 		if (!expandedTeamId && teamMemberGroups[0]?.id) {
@@ -224,17 +253,27 @@ const Dashboard_CEO = () => {
 		setProfileMenuOpen(false)
 	}
 
-	const openModalById = (modalId: ModalId) => {
+	const openModalById = (modalId: ModalId, presetTeamId?: string) => {
 		setProfileMenuOpen(false)
 		if (modalId === 'createTeam') {
 			setCreateTeamForm({ teamName: '', teamDescription: '', teamTags: '' })
 			setCreateTeamError('')
+		}
+		if (modalId === 'invite') {
+			setInviteForm({ name: '', email: '', role: 'Employee' })
+			setInviteError('')
+		}
+		if (modalId === 'addMember') {
+			setAddMemberForm({ teamId: presetTeamId ?? teamsData[0]?.id ?? '', memberId: '' })
+			setAddMemberError('')
 		}
 		setOpenModal(modalId)
 	}
 
 	const closeModal = () => {
 		setCreateTeamError('')
+		setInviteError('')
+		setAddMemberError('')
 		setOpenModal(null)
 	}
 
@@ -262,6 +301,7 @@ const Dashboard_CEO = () => {
 					teamName: createTeamForm.teamName.trim(),
 					teamDescription: createTeamForm.teamDescription.trim(),
 					teamTags: parsedTags,
+					companyId,
 				}),
 			})
 
@@ -279,6 +319,91 @@ const Dashboard_CEO = () => {
 			setCreateTeamError(message)
 		} finally {
 			setIsCreatingTeam(false)
+		}
+	}
+
+	const handleSendInvite = async () => {
+		if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+			setInviteError('Name and email are required.')
+			return
+		}
+
+		if (!companyId) {
+			setInviteError('Company not found for current user. Please log in again.')
+			return
+		}
+
+		setInviteError('')
+		setIsSendingInvite(true)
+
+		try {
+			const response = await fetch(`${apiBase}/api/invite/invite`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					name: inviteForm.name.trim(),
+					email: inviteForm.email.trim(),
+					role: inviteForm.role,
+					companyId,
+				}),
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to send invite: ${response.status}`)
+			}
+
+			closeModal()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to send invite. Please try again.'
+			setInviteError(message)
+		} finally {
+			setIsSendingInvite(false)
+		}
+	}
+
+	const handleAddMemberToTeam = async () => {
+		if (!addMemberForm.teamId || !addMemberForm.memberId) {
+			setAddMemberError('Please select both team and member.')
+			return
+		}
+
+		setAddMemberError('')
+		setIsAddingMember(true)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			const response = await fetch(`${apiBase}/api/teams/add-member`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					teamId: addMemberForm.teamId,
+					memberId: addMemberForm.memberId,
+					companyId,
+				}),
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to add member: ${response.status}`)
+			}
+
+			await fetchTeamsAndMembers()
+			closeModal()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to add member. Please try again.'
+			setAddMemberError(message)
+		} finally {
+			setIsAddingMember(false)
 		}
 	}
 
@@ -496,7 +621,7 @@ const Dashboard_CEO = () => {
 										<small>{team.totalMembers} members</small>
 									</div>
 									<div className="ceo-list-actions">
-										<button className="ceo-btn-sm" onClick={() => openModalById('addMember')} type="button">
+										<button className="ceo-btn-sm" onClick={() => openModalById('addMember', team.id)} type="button">
 											Add Member
 										</button>
 										<button className="ceo-btn-danger" onClick={() => openModalById('revokeMember')} type="button">
@@ -794,6 +919,99 @@ const Dashboard_CEO = () => {
 										/>
 									</label>
 								</>
+							) : openModal === 'invite' ? (
+								<>
+									{inviteError && <p className="form-message form-error">{inviteError}</p>}
+									<label>
+										Full Name
+										<input
+											placeholder="e.g. Rahul Sharma"
+											type="text"
+											value={inviteForm.name}
+											onChange={(event) =>
+												setInviteForm((prev) => ({
+													...prev,
+													name: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<label>
+										Work Email
+										<input
+											placeholder="member@company.com"
+											type="email"
+											value={inviteForm.email}
+											onChange={(event) =>
+												setInviteForm((prev) => ({
+													...prev,
+													email: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<label>
+										Role
+										<select
+											value={inviteForm.role}
+											onChange={(event) =>
+												setInviteForm((prev) => ({
+													...prev,
+													role: event.target.value as 'Manager' | 'Employee',
+												}))
+											}
+										>
+											<option value="Employee">Employee</option>
+											<option value="Manager">Manager</option>
+										</select>
+									</label>
+								</>
+							) : openModal === 'addMember' ? (
+								<>
+									{addMemberError && <p className="form-message form-error">{addMemberError}</p>}
+									<label>
+										Team
+										<select
+											value={addMemberForm.teamId}
+											onChange={(event) =>
+												setAddMemberForm((prev) => ({
+													...prev,
+													teamId: event.target.value,
+												}))
+											}
+										>
+											<option value="" disabled>
+												Select a team
+											</option>
+											{teamsData.map((team) => (
+												<option key={team.id} value={team.id}>
+													{team.name}
+												</option>
+											))}
+										</select>
+									</label>
+									<label>
+										Member
+										<select
+											value={addMemberForm.memberId}
+											onChange={(event) =>
+												setAddMemberForm((prev) => ({
+													...prev,
+													memberId: event.target.value,
+												}))
+											}
+										>
+											<option value="" disabled>
+												Select a member
+											</option>
+											{membersData.map((member) => (
+												<option key={member.id} value={member.id}>
+													{member.name} ({member.role})
+												</option>
+											))}
+										</select>
+									</label>
+								</>
 							) : (
 								<>
 									<label>
@@ -821,11 +1039,31 @@ const Dashboard_CEO = () => {
 							</button>
 							<button
 								className="ceo-btn-primary"
-								onClick={openModal === 'createTeam' ? () => void handleCreateTeam() : closeModal}
+								onClick={
+									openModal === 'createTeam'
+										? () => void handleCreateTeam()
+										: openModal === 'invite'
+											? () => void handleSendInvite()
+											: openModal === 'addMember'
+												? () => void handleAddMemberToTeam()
+											: closeModal
+								}
 								type="button"
-								disabled={openModal === 'createTeam' && isCreatingTeam}
+								disabled={(openModal === 'createTeam' && isCreatingTeam) || (openModal === 'invite' && isSendingInvite) || (openModal === 'addMember' && isAddingMember)}
 							>
-								{openModal === 'createTeam' ? (isCreatingTeam ? 'Creating...' : 'Create Team') : 'Confirm'}
+								{openModal === 'createTeam'
+									? isCreatingTeam
+										? 'Creating...'
+										: 'Create Team'
+									: openModal === 'invite'
+										? isSendingInvite
+											? 'Sending...'
+											: 'Send Invite'
+										: openModal === 'addMember'
+											? isAddingMember
+												? 'Adding...'
+												: 'Add Member'
+										: 'Confirm'}
 							</button>
 						</div>
 					</div>

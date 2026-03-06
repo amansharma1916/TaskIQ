@@ -17,6 +17,11 @@ const TeamSchema = new mongoose.Schema(
     }
   ],
 
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company"
+  },
+
   teamMembers: [
     {
       type: mongoose.Schema.Types.ObjectId,
