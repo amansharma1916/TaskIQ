@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './database/db_connect.js';
 import UsersAuthRoutes from './routes/UsersAuthRoutes.js';
+import InviteRoute from './routes/InviteRoute.js';
 import TeamsRoute from './routes/TeamsRoute.js';
 import MembersRoute from './routes/MembersRoutes.js';
 
@@ -27,6 +28,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth/users', UsersAuthRoutes);
 app.use('/api/auth/ceo', UsersAuthRoutes);
+app.use('/api/invite', InviteRoute);
 app.use('/api/teams', TeamsRoute);
 app.use('/api/members', MembersRoute);
 

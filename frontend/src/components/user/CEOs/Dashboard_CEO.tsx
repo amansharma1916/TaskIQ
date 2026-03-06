@@ -126,6 +126,13 @@ const Dashboard_CEO = () => {
 	})
 	const [createTeamError, setCreateTeamError] = useState('')
 	const [isCreatingTeam, setIsCreatingTeam] = useState(false)
+	const [inviteForm, setInviteForm] = useState({
+		name: '',
+		email: '',
+		role: 'Employee' as 'Manager' | 'Employee',
+	})
+	const [inviteError, setInviteError] = useState('')
+	const [isSendingInvite, setIsSendingInvite] = useState(false)
 	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
 		const map: Record<string, boolean> = {}
 		for (const item of [...ceoDashboardData.todayTasks, ...ceoDashboardData.allTasks]) {
@@ -208,6 +215,18 @@ const Dashboard_CEO = () => {
 	}, [teamsData, membersData])
 	const [expandedTeamId, setExpandedTeamId] = useState<string | null>(ceoDashboardData.teams[0]?.id ?? null)
 	const onlineMembers = membersData.slice(0, 4)
+	const companyId = (() => {
+		try {
+			const userRaw = localStorage.getItem('user')
+			if (!userRaw) {
+				return null
+			}
+			const parsed = JSON.parse(userRaw) as { companyId?: string | null }
+			return parsed.companyId ?? null
+		} catch {
+			return null
+		}
+	})()
 
 	useEffect(() => {
 		if (!expandedTeamId && teamMemberGroups[0]?.id) {
@@ -230,11 +249,16 @@ const Dashboard_CEO = () => {
 			setCreateTeamForm({ teamName: '', teamDescription: '', teamTags: '' })
 			setCreateTeamError('')
 		}
+		if (modalId === 'invite') {
+			setInviteForm({ name: '', email: '', role: 'Employee' })
+			setInviteError('')
+		}
 		setOpenModal(modalId)
 	}
 
 	const closeModal = () => {
 		setCreateTeamError('')
+		setInviteError('')
 		setOpenModal(null)
 	}
 
@@ -279,6 +303,49 @@ const Dashboard_CEO = () => {
 			setCreateTeamError(message)
 		} finally {
 			setIsCreatingTeam(false)
+		}
+	}
+
+	const handleSendInvite = async () => {
+		if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+			setInviteError('Name and email are required.')
+			return
+		}
+
+		if (!companyId) {
+			setInviteError('Company not found for current user. Please log in again.')
+			return
+		}
+
+		setInviteError('')
+		setIsSendingInvite(true)
+
+		try {
+			const response = await fetch(`${apiBase}/api/invite/invite`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					name: inviteForm.name.trim(),
+					email: inviteForm.email.trim(),
+					role: inviteForm.role,
+					companyId,
+				}),
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to send invite: ${response.status}`)
+			}
+
+			closeModal()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to send invite. Please try again.'
+			setInviteError(message)
+		} finally {
+			setIsSendingInvite(false)
 		}
 	}
 
@@ -794,6 +861,53 @@ const Dashboard_CEO = () => {
 										/>
 									</label>
 								</>
+							) : openModal === 'invite' ? (
+								<>
+									{inviteError && <p className="form-message form-error">{inviteError}</p>}
+									<label>
+										Full Name
+										<input
+											placeholder="e.g. Rahul Sharma"
+											type="text"
+											value={inviteForm.name}
+											onChange={(event) =>
+												setInviteForm((prev) => ({
+													...prev,
+													name: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<label>
+										Work Email
+										<input
+											placeholder="member@company.com"
+											type="email"
+											value={inviteForm.email}
+											onChange={(event) =>
+												setInviteForm((prev) => ({
+													...prev,
+													email: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<label>
+										Role
+										<select
+											value={inviteForm.role}
+											onChange={(event) =>
+												setInviteForm((prev) => ({
+													...prev,
+													role: event.target.value as 'Manager' | 'Employee',
+												}))
+											}
+										>
+											<option value="Employee">Employee</option>
+											<option value="Manager">Manager</option>
+										</select>
+									</label>
+								</>
 							) : (
 								<>
 									<label>
@@ -821,11 +935,25 @@ const Dashboard_CEO = () => {
 							</button>
 							<button
 								className="ceo-btn-primary"
-								onClick={openModal === 'createTeam' ? () => void handleCreateTeam() : closeModal}
+								onClick={
+									openModal === 'createTeam'
+										? () => void handleCreateTeam()
+										: openModal === 'invite'
+											? () => void handleSendInvite()
+											: closeModal
+								}
 								type="button"
-								disabled={openModal === 'createTeam' && isCreatingTeam}
+								disabled={(openModal === 'createTeam' && isCreatingTeam) || (openModal === 'invite' && isSendingInvite)}
 							>
-								{openModal === 'createTeam' ? (isCreatingTeam ? 'Creating...' : 'Create Team') : 'Confirm'}
+								{openModal === 'createTeam'
+									? isCreatingTeam
+										? 'Creating...'
+										: 'Create Team'
+									: openModal === 'invite'
+										? isSendingInvite
+											? 'Sending...'
+											: 'Send Invite'
+										: 'Confirm'}
 							</button>
 						</div>
 					</div>

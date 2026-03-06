@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import LandingPage from '../components/public/LandingPage'
 import RegisterPage from '../components/public/RegisterPage'
 import LoginPage from '../components/public/LoginPage'
+import InviteRegisterPage from '../components/public/InviteRegisterPage'
 import Home from '../components/private/Home'
 import ProtectRoute from '../protection/ProtectRoute'
 import RoleRender from '../protection/RoleRender'
@@ -17,6 +18,10 @@ const router = createBrowserRouter([
   {
     path: '/register',
     element: <RegisterPage />,
+  },
+  {
+    path: '/register/invite',
+    element: <InviteRegisterPage />,
   },
   {
     path: '/login',

@@ -2,6 +2,8 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import Users from "../database/Schemas/Users.js";
 import Company from "../database/Schemas/Company.js";
+import Invite from "../database/Schemas/Invite.js";
+import Members from "../database/Schemas/Members.js";
 
 const router = express.Router();
 const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
@@ -109,6 +111,76 @@ router.post("/login", async (req, res) => {
 			},
 		});
 	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.post("/register-with-invite", async (req, res) => {
+	let createdUserId = null;
+	let createdMemberId = null;
+	try {
+		const { token, name, password } = req.body;
+
+		if (!token || !name || !password) {
+			return res.status(400).json({ message: "token, name, and password are required" });
+		}
+
+		if (String(password).length < 8) {
+			return res.status(400).json({ message: "Password must be at least 8 characters long" });
+		}
+
+		const invite = await Invite.findOne({ token, used: false });
+		if (!invite) {
+			return res.status(400).json({ message: "Invalid invite" });
+		}
+
+		const existingUser = await Users.findOne({ workEmail: invite.email });
+		if (existingUser) {
+			return res.status(409).json({ message: "This invite email is already registered" });
+		}
+
+		const company = await Company.findById(invite.companyId);
+		if (!company) {
+			return res.status(404).json({ message: "Company not found" });
+		}
+
+		const user = await Users.create({
+			name,
+			workEmail: invite.email,
+			password,
+			role: invite.role,
+			companyId: invite.companyId,
+		});
+		createdUserId = user._id;
+
+		const member = await Members.create({
+			memberName: name,
+			memberRole: invite.role,
+		});
+		createdMemberId = member._id;
+
+		invite.used = true;
+		await invite.save();
+
+		return res.status(201).json({
+			message: "Account created",
+			user: {
+				id: user._id,
+				name: user.name,
+				companyId: user.companyId,
+				companyName: company.companyName,
+				workEmail: user.workEmail,
+				teamSize: company.teamSize,
+				role: user.role,
+			},
+		});
+	} catch (error) {
+		if (createdMemberId) {
+			await Members.findByIdAndDelete(createdMemberId).catch(() => null);
+		}
+		if (createdUserId) {
+			await Users.findByIdAndDelete(createdUserId).catch(() => null);
+		}
 		return res.status(500).json({ message: error.message });
 	}
 });
