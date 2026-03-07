@@ -3,15 +3,21 @@ import crypto from "crypto";
 import Invite from "../database/Schemas/Invite.js";
 import Company from "../database/Schemas/Company.js";
 import sendInviteEmail from "../utilities/sendInviteEmail.js";
+import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/invite", async (req, res) => {
+router.post("/invite", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
   try {
-    const { email, name, role, companyId } = req.body;
+    const { email, name, role } = req.body;
+    const companyId = req.user?.companyId;
 
-    if (!email || !name || !companyId) {
-      return res.status(400).json({ message: "email, name, and companyId are required" });
+    if (!email || !name) {
+      return res.status(400).json({ message: "email and name are required" });
+    }
+
+    if (!companyId) {
+      return res.status(400).json({ message: "Authenticated user is not linked to a company" });
     }
 
     if (role && !["Manager", "Employee"].includes(role)) {

@@ -1,5 +1,7 @@
+import { getAuthUser } from '../../services/auth'
+
 const Home = () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getAuthUser() ?? {}
 
   return (
     <div style={{ padding: '2rem' }}>

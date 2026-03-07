@@ -4,9 +4,23 @@ import Users from "../database/Schemas/Users.js";
 import Company from "../database/Schemas/Company.js";
 import Invite from "../database/Schemas/Invite.js";
 import Members from "../database/Schemas/Members.js";
+import { buildAuthResponse, hashRefreshToken } from "../utilities/authTokens.js";
 
 const router = express.Router();
 const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
+
+const applySessionAndPersistUser = async (user, company = null) => {
+	const authPayload = buildAuthResponse(user, company);
+	user.refreshTokenHash = authPayload.refreshTokenHash;
+	user.refreshTokenExpiresAt = authPayload.refreshTokenExpiresAt;
+	await user.save();
+
+	return {
+		user: authPayload.user,
+		accessToken: authPayload.accessToken,
+		refreshToken: authPayload.refreshToken,
+	};
+};
 
 router.post("/register", async (req, res) => {
 	let createdUserId = null;
@@ -52,17 +66,13 @@ router.post("/register", async (req, res) => {
 		createdUser.companyId = company._id;
 		await createdUser.save();
 
+		const session = await applySessionAndPersistUser(createdUser, company);
+
 		return res.status(201).json({
-			message: "User registered successfully",
-			user: {
-				id: createdUser._id,
-				name: createdUser.name,
-				companyId: createdUser.companyId,
-				companyName: company.companyName,
-				workEmail: createdUser.workEmail,
-				teamSize: company.teamSize,
-				role: createdUser.role,
-			},
+			message: "User registered and logged in successfully",
+			user: session.user,
+			accessToken: session.accessToken,
+			refreshToken: session.refreshToken,
 		});
 	} catch (error) {
 		if (createdUserId) {
@@ -85,7 +95,7 @@ router.post("/login", async (req, res) => {
 		const user = await Users.findOne({
 			workEmail: String(workEmail).toLowerCase().trim(),
 		})
-			.select("+password")
+			.select("+password +refreshTokenHash +refreshTokenExpiresAt")
 			.populate("companyId");
 
 		if (!user) {
@@ -98,17 +108,13 @@ router.post("/login", async (req, res) => {
 			return res.status(401).json({ message: "Invalid credentials" });
 		}
 
+		const session = await applySessionAndPersistUser(user, user.companyId);
+
 		return res.status(200).json({
 			message: "Login successful",
-			user: {
-				id: user._id,
-				name: user.name,
-				companyId: user.companyId?._id ?? null,
-				companyName: user.companyId?.companyName ?? null,
-				workEmail: user.workEmail,
-				teamSize: user.companyId?.teamSize ?? null,
-				role: user.role,
-			},
+			user: session.user,
+			accessToken: session.accessToken,
+			refreshToken: session.refreshToken,
 		});
 	} catch (error) {
 		return res.status(500).json({ message: error.message });
@@ -164,17 +170,13 @@ router.post("/register-with-invite", async (req, res) => {
 		invite.used = true;
 		await invite.save();
 
+		const session = await applySessionAndPersistUser(user, company);
+
 		return res.status(201).json({
-			message: "Account created",
-			user: {
-				id: user._id,
-				name: user.name,
-				companyId: user.companyId,
-				companyName: company.companyName,
-				workEmail: user.workEmail,
-				teamSize: company.teamSize,
-				role: user.role,
-			},
+			message: "Account created and logged in",
+			user: session.user,
+			accessToken: session.accessToken,
+			refreshToken: session.refreshToken,
 		});
 	} catch (error) {
 		if (createdMemberId) {
@@ -183,6 +185,65 @@ router.post("/register-with-invite", async (req, res) => {
 		if (createdUserId) {
 			await Users.findByIdAndDelete(createdUserId).catch(() => null);
 		}
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.post("/refresh", async (req, res) => {
+	try {
+		const { refreshToken } = req.body;
+
+		if (!refreshToken || typeof refreshToken !== "string") {
+			return res.status(400).json({ message: "refreshToken is required" });
+		}
+
+		const refreshTokenHash = hashRefreshToken(refreshToken);
+		const user = await Users.findOne({ refreshTokenHash })
+			.select("+refreshTokenHash +refreshTokenExpiresAt")
+			.populate("companyId");
+
+		if (!user) {
+			return res.status(401).json({ message: "Invalid refresh token" });
+		}
+
+		if (!user.refreshTokenExpiresAt || user.refreshTokenExpiresAt.getTime() < Date.now()) {
+			user.refreshTokenHash = null;
+			user.refreshTokenExpiresAt = null;
+			await user.save();
+			return res.status(401).json({ message: "Refresh token expired" });
+		}
+
+		const session = await applySessionAndPersistUser(user, user.companyId);
+
+		return res.status(200).json({
+			message: "Token refreshed",
+			user: session.user,
+			accessToken: session.accessToken,
+			refreshToken: session.refreshToken,
+		});
+	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.post("/logout", async (req, res) => {
+	try {
+		const { refreshToken } = req.body;
+		if (!refreshToken || typeof refreshToken !== "string") {
+			return res.status(200).json({ message: "Logged out" });
+		}
+
+		const refreshTokenHash = hashRefreshToken(refreshToken);
+		const user = await Users.findOne({ refreshTokenHash }).select("+refreshTokenHash +refreshTokenExpiresAt");
+
+		if (user) {
+			user.refreshTokenHash = null;
+			user.refreshTokenExpiresAt = null;
+			await user.save();
+		}
+
+		return res.status(200).json({ message: "Logged out" });
+	} catch (error) {
 		return res.status(500).json({ message: error.message });
 	}
 });

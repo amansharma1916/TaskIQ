@@ -1,9 +1,9 @@
 import Dashboard_CEO from "../components/user/CEOs/Dashboard_CEO"
-interface props {
-    role: string
-}
+import { getAuthUser } from "../services/auth"
 
-function RoleRender({ role }: props){
+function RoleRender(){
+    const role = getAuthUser()?.role
+
     switch (role) {
         case 'CEO':
             return <Dashboard_CEO />

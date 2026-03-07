@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { getAuthUser, hasValidAccessToken } from '../services/auth'
 
 interface ProtectRouteProps {
 	children: ReactNode
@@ -7,18 +8,8 @@ interface ProtectRouteProps {
 }
 
 const hasValidUserSession = (): boolean => {
-	const storedUser = localStorage.getItem('user')
-	if (!storedUser) {
-		return false
-	}
-
-	try {
-		const parsedUser = JSON.parse(storedUser) as { workEmail?: string; name?: string } | null
-		return Boolean(parsedUser && (parsedUser.workEmail || parsedUser.name))
-	} catch {
-		localStorage.removeItem('user')
-		return false
-	}
+	const user = getAuthUser()
+	return hasValidAccessToken() && Boolean(user && (user.workEmail || user.name))
 }
 
 const ProtectRoute = ({ children, redirectTo = '/login' }: ProtectRouteProps) => {

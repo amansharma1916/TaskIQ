@@ -24,6 +24,16 @@ const UsersSchema = new mongoose.Schema(
       default: "CEO",
       trim: true,
     },
+    refreshTokenHash: {
+      type: String,
+      select: false,
+      default: null,
+    },
+    refreshTokenExpiresAt: {
+      type: Date,
+      select: false,
+      default: null,
+    },
   },
   {
     timestamps: true,

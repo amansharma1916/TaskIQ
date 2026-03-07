@@ -1,15 +1,31 @@
 import express from "express";
 import Teams from "../database/Schemas/Teams.js";
 import Members from "../database/Schemas/Members.js";
+import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/create", async (req, res) => {
-  try {
-    const { teamName, teamDescription, teamTags, companyId } = req.body;
+router.use(authenticateJWT);
 
-    if (!teamName || !companyId) {
-      return res.status(400).json({ message: "teamName and companyId are required" });
+const requireCompanyScope = (req, res) => {
+  const companyId = req.user?.companyId;
+  if (!companyId) {
+    res.status(400).json({ message: "Authenticated user is not linked to a company" });
+    return null;
+  }
+  return companyId;
+};
+
+router.post("/create", authorizeRoles("CEO", "Manager"), async (req, res) => {
+  try {
+    const { teamName, teamDescription, teamTags } = req.body;
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    if (!teamName) {
+      return res.status(400).json({ message: "teamName is required" });
     }
 
     const team = await Teams.create({
@@ -28,10 +44,9 @@ router.post("/create", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const { companyId } = req.query;
-
+    const companyId = requireCompanyScope(req, res);
     if (!companyId) {
-      return res.status(400).json({ message: "companyId query param is required" });
+      return;
     }
 
     const teams = await Teams.find({ companyId }).populate("teamMembers");
@@ -45,9 +60,9 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const { companyId } = req.query;
+    const companyId = requireCompanyScope(req, res);
     if (!companyId) {
-      return res.status(400).json({ message: "companyId query param is required" });
+      return;
     }
 
     const team = await Teams.findOne({ _id: req.params.id, companyId })
@@ -65,12 +80,11 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
-    const { companyId } = req.query;
-
+    const companyId = requireCompanyScope(req, res);
     if (!companyId) {
-      return res.status(400).json({ message: "companyId query param is required" });
+      return;
     }
 
     const team = await Teams.findById(req.params.id);
@@ -96,12 +110,16 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-router.post("/add-member", async (req, res) => {
+router.post("/add-member", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
-    const { memberId, teamId, companyId } = req.body;
+    const { memberId, teamId } = req.body;
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
 
-    if (!memberId || !teamId || !companyId) {
-      return res.status(400).json({ message: "memberId, teamId, and companyId are required" });
+    if (!memberId || !teamId) {
+      return res.status(400).json({ message: "memberId and teamId are required" });
     }
 
     const member = await Members.findById(memberId);
@@ -160,12 +178,16 @@ router.post("/add-member", async (req, res) => {
   }
 });
 
-router.post("/remove-member", async (req, res) => {
+router.post("/remove-member", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
-    const { memberId, teamId, companyId } = req.body;
+    const { memberId, teamId } = req.body;
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
 
-    if (!memberId || !teamId || !companyId) {
-      return res.status(400).json({ message: "memberId, teamId, and companyId are required" });
+    if (!memberId || !teamId) {
+      return res.status(400).json({ message: "memberId and teamId are required" });
     }
 
     const member = await Members.findById(memberId);
@@ -214,12 +236,16 @@ router.post("/remove-member", async (req, res) => {
   }
 });
 
-router.patch("/set-lead", async (req, res) => {
+router.patch("/set-lead", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
-    const { memberId, teamId, companyId } = req.body;
+    const { memberId, teamId } = req.body;
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
 
-    if (!memberId || !teamId || !companyId) {
-      return res.status(400).json({ message: "memberId, teamId, and companyId are required" });
+    if (!memberId || !teamId) {
+      return res.status(400).json({ message: "memberId and teamId are required" });
     }
 
     const member = await Members.findById(memberId);

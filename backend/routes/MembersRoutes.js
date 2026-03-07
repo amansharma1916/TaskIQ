@@ -1,17 +1,44 @@
 import express from "express";
 import Members from "../database/Schemas/Members.js";
 import Teams from "../database/Schemas/Teams.js";
+import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/add", async (req, res) => {
+router.use(authenticateJWT);
+
+const requireCompanyScope = (req, res) => {
+  const companyId = req.user?.companyId;
+  if (!companyId) {
+    res.status(400).json({ message: "Authenticated user is not linked to a company" });
+    return null;
+  }
+  return companyId;
+};
+
+router.post("/add", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
+    const { memberName, memberRole, teamId, userId } = req.body;
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
 
-    const { memberName, memberRole, teamId, userId, companyId } = req.body;
+    if (!memberName) {
+      return res.status(400).json({ message: "memberName is required" });
+    }
 
-    let resolvedCompanyId = companyId || null;
-    if (teamId && !resolvedCompanyId) {
+    let resolvedCompanyId = companyId;
+    if (teamId) {
       const team = await Teams.findById(teamId);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+
+      if (team.companyId && String(team.companyId) !== String(companyId)) {
+        return res.status(403).json({ message: "Team not in this company" });
+      }
+
       resolvedCompanyId = team?.companyId ?? null;
     }
 
@@ -39,10 +66,9 @@ router.post("/add", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const { companyId } = req.query;
-
+    const companyId = requireCompanyScope(req, res);
     if (!companyId) {
-      return res.status(400).json({ message: "companyId query param is required" });
+      return;
     }
 
     const members = await Members.find({ companyId }).populate("memberTeam");
@@ -54,10 +80,14 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
 
-    const member = await Members.findByIdAndDelete(req.params.id);
+    const member = await Members.findOneAndDelete({ _id: req.params.id, companyId });
 
     if (!member) return res.status(404).json({ message: "Member not found" });
 

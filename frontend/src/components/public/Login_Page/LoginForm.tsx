@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { saveAuthSession } from '../../../services/auth'
 
 const LoginForm = () => {
   const navigate = useNavigate()
@@ -58,8 +59,8 @@ const LoginForm = () => {
 
       setSuccessMessage('Login successful! Redirecting...')
       console.log('Login successful:', result)
-      
-      localStorage.setItem('user', JSON.stringify(result.user))
+
+      saveAuthSession(result ?? {})
       
       setTimeout(() => {
         navigate('/ceo/dashboard')

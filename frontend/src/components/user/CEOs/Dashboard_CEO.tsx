@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
+import { authorizedFetch } from '../../../services/apiClient'
+import { getAuthUser, logoutSession, type AuthUser } from '../../../services/auth'
 import {
 	ceoDashboardData,
 	pageTitles,
@@ -57,16 +59,6 @@ type ApiTeam = {
 		_id: string
 		memberName?: string
 	}>
-}
-
-type StoredAuthUser = {
-	id?: string
-	name?: string
-	workEmail?: string
-	companyId?: string | null
-	companyName?: string
-	teamSize?: string
-	role?: 'CEO' | 'Manager' | 'Employee' | string
 }
 
 const avatarTones = ['cyan-purple', 'purple-red', 'yellow-cyan', 'green-purple', 'cyan-green', 'green-cyan', 'muted'] as const
@@ -169,18 +161,7 @@ const Dashboard_CEO = () => {
 		return map
 	})
 
-	const storedUser: StoredAuthUser | null = (() => {
-		try {
-			const userRaw = localStorage.getItem('user')
-			if (!userRaw) {
-				return null
-			}
-
-			return JSON.parse(userRaw) as StoredAuthUser
-		} catch {
-			return null
-		}
-	})()
+	const storedUser: AuthUser | null = getAuthUser()
 
 	const displayCompanyName = storedUser?.companyName?.trim() || ceoDashboardData.orgName
 	const displayUserName = storedUser?.name?.trim() || ceoDashboardData.currentUser.name
@@ -194,8 +175,8 @@ const Dashboard_CEO = () => {
 			}
 
 			const [teamsResponse, membersResponse] = await Promise.all([
-				fetch(`${apiBase}/api/teams?companyId=${encodeURIComponent(companyId)}`),
-				fetch(`${apiBase}/api/members?companyId=${encodeURIComponent(companyId)}`),
+				authorizedFetch('/api/teams'),
+				authorizedFetch('/api/members'),
 			])
 
 			if (!teamsResponse.ok || !membersResponse.ok) {
@@ -327,6 +308,11 @@ const Dashboard_CEO = () => {
 		setOpenModal(null)
 	}
 
+	const handleSignOut = async () => {
+		await logoutSession(apiBase)
+		navigate('/login')
+	}
+
 	const handleRevokeMember = async (memberId: string, teamId: string) => {
 		setRevokeMemberError('')
 		setRevokingMemberId(memberId)
@@ -336,12 +322,12 @@ const Dashboard_CEO = () => {
 				throw new Error('Company not found for current user. Please log in again.')
 			}
 
-			const response = await fetch(`${apiBase}/api/teams/remove-member`, {
+			const response = await authorizedFetch('/api/teams/remove-member', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({ memberId, teamId, companyId }),
+				body: JSON.stringify({ memberId, teamId }),
 			})
 
 			const result = await response.json().catch(() => null)
@@ -367,7 +353,7 @@ const Dashboard_CEO = () => {
 				throw new Error('Company not found for current user. Please log in again.')
 			}
 
-			const response = await fetch(`${apiBase}/api/teams/${teamId}?companyId=${encodeURIComponent(companyId)}`, {
+			const response = await authorizedFetch(`/api/teams/${teamId}`, {
 				method: 'DELETE',
 			})
 
@@ -401,7 +387,7 @@ const Dashboard_CEO = () => {
 			.filter(Boolean)
 
 		try {
-			const response = await fetch(`${apiBase}/api/teams/create`, {
+			const response = await authorizedFetch('/api/teams/create', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -410,7 +396,6 @@ const Dashboard_CEO = () => {
 					teamName: createTeamForm.teamName.trim(),
 					teamDescription: createTeamForm.teamDescription.trim(),
 					teamTags: parsedTags,
-					companyId,
 				}),
 			})
 
@@ -448,7 +433,7 @@ const Dashboard_CEO = () => {
 		setIsSendingInvite(true)
 
 		try {
-			const response = await fetch(`${apiBase}/api/invite/invite`, {
+			const response = await authorizedFetch('/api/invite/invite', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -457,7 +442,6 @@ const Dashboard_CEO = () => {
 					name: inviteForm.name.trim(),
 					email: inviteForm.email.trim(),
 					role: inviteForm.role,
-					companyId,
 				}),
 			})
 
@@ -492,7 +476,7 @@ const Dashboard_CEO = () => {
 				throw new Error('Company not found for current user. Please log in again.')
 			}
 
-			const response = await fetch(`${apiBase}/api/teams/add-member`, {
+			const response = await authorizedFetch('/api/teams/add-member', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -500,7 +484,6 @@ const Dashboard_CEO = () => {
 				body: JSON.stringify({
 					teamId: addMemberForm.teamId,
 					memberId: addMemberForm.memberId,
-					companyId,
 				}),
 			})
 
@@ -560,9 +543,9 @@ const Dashboard_CEO = () => {
 						<button onClick={() => switchPanel('settings')} type="button">
 							Preferences
 						</button>
-						<button onClick={() => {setProfileMenuOpen(false)
-							localStorage.removeItem('user')
-							navigate('/login')
+						<button onClick={() => {
+							setProfileMenuOpen(false)
+							void handleSignOut()
 						}} type="button" className="danger">
 							Sign Out
 						</button>

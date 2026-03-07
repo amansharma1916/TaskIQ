@@ -7,9 +7,6 @@ import Home from '../components/private/Home'
 import ProtectRoute from '../protection/ProtectRoute'
 import RoleRender from '../protection/RoleRender'
 
-const user = localStorage.getItem('user')
-const role = user ? JSON.parse(user).role : null
-
 const router = createBrowserRouter([
   {
     path: '/',
@@ -39,7 +36,7 @@ const router = createBrowserRouter([
     path: '/ceo/dashboard',
     element: (
       <ProtectRoute>
-        <RoleRender role={role} />
+        <RoleRender />
       </ProtectRoute>
     ),
   },
