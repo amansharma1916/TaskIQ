@@ -59,6 +59,16 @@ type ApiTeam = {
 	}>
 }
 
+type StoredAuthUser = {
+	id?: string
+	name?: string
+	workEmail?: string
+	companyId?: string | null
+	companyName?: string
+	teamSize?: string
+	role?: 'CEO' | 'Manager' | 'Employee' | string
+}
+
 const avatarTones = ['cyan-purple', 'purple-red', 'yellow-cyan', 'green-purple', 'cyan-green', 'green-cyan', 'muted'] as const
 
 const getInitials = (name: string) => {
@@ -159,6 +169,24 @@ const Dashboard_CEO = () => {
 		return map
 	})
 
+	const storedUser: StoredAuthUser | null = (() => {
+		try {
+			const userRaw = localStorage.getItem('user')
+			if (!userRaw) {
+				return null
+			}
+
+			return JSON.parse(userRaw) as StoredAuthUser
+		} catch {
+			return null
+		}
+	})()
+
+	const displayCompanyName = storedUser?.companyName?.trim() || ceoDashboardData.orgName
+	const displayUserName = storedUser?.name?.trim() || ceoDashboardData.currentUser.name
+	const displayDesignation = storedUser?.role?.trim() || ceoDashboardData.currentUser.role
+	const displayUserInitials = getInitials(displayUserName) || ceoDashboardData.currentUser.initials
+
 	const fetchTeamsAndMembers = async () => {
 		try {
 			if (!companyId) {
@@ -221,18 +249,7 @@ const Dashboard_CEO = () => {
 	const selectedTeamMembersForRevoke = selectedTeamForRevoke
 		? membersData.filter((member) => member.team === selectedTeamForRevoke.name)
 		: []
-	const companyId = (() => {
-		try {
-			const userRaw = localStorage.getItem('user')
-			if (!userRaw) {
-				return null
-			}
-			const parsed = JSON.parse(userRaw) as { companyId?: string | null }
-			return parsed.companyId ?? null
-		} catch {
-			return null
-		}
-	})()
+	const companyId = storedUser?.companyId ?? null
 
 	useEffect(() => {
 		if (!actionAlert) {
@@ -531,7 +548,7 @@ const Dashboard_CEO = () => {
 					</div>
 					<div className="ceo-logo-line" />
 					<div className="ceo-org-label">
-						{ceoDashboardData.orgName} | CEO
+						{displayCompanyName} | {displayDesignation}
 					</div>
 				</button>
 
@@ -601,10 +618,10 @@ const Dashboard_CEO = () => {
 				</div>
 
 				<button className="ceo-user-card" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
-					<div className="ceo-avatar">{ceoDashboardData.currentUser.initials}</div>
+					<div className="ceo-avatar">{displayUserInitials}</div>
 					<div>
-						<div className="ceo-user-name">{ceoDashboardData.currentUser.name}</div>
-						<div className="ceo-user-role">{ceoDashboardData.currentUser.role}</div>
+						<div className="ceo-user-name">{displayUserName}</div>
+						<div className="ceo-user-role">{displayDesignation} | {displayDesignation === 'CEO' ? 'Admin' : 'Employee'}</div>
 					</div>
 				</button>
 			</aside>
@@ -620,7 +637,7 @@ const Dashboard_CEO = () => {
 							New Project
 						</button>
 						<button className="ceo-notif" type="button" aria-label="Notifications">
-							N
+							🔔
 						</button>
 					</div>
 				</header>
