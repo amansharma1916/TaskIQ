@@ -160,6 +160,60 @@ router.post("/add-member", async (req, res) => {
   }
 });
 
+router.post("/remove-member", async (req, res) => {
+  try {
+    const { memberId, teamId, companyId } = req.body;
+
+    if (!memberId || !teamId || !companyId) {
+      return res.status(400).json({ message: "memberId, teamId, and companyId are required" });
+    }
+
+    const member = await Members.findById(memberId);
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    const team = await Teams.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+
+    if (!team.companyId) {
+      team.companyId = companyId;
+      await team.save();
+    }
+
+    if (String(team.companyId) !== String(companyId)) {
+      return res.status(403).json({ message: "Team not in this company" });
+    }
+
+    if (!member.companyId) {
+      member.companyId = companyId;
+      await member.save();
+    }
+
+    if (member.companyId && String(member.companyId) !== String(companyId)) {
+      return res.status(403).json({ message: "Member not in this company" });
+    }
+
+    if (!member.memberTeam || String(member.memberTeam) !== String(teamId)) {
+      return res.status(409).json({ message: "Member is not assigned to this team" });
+    }
+
+    await Teams.findByIdAndUpdate(teamId, {
+      $pull: { teamMembers: member._id },
+      $inc: { totalMembers: -1 },
+    });
+
+    member.memberTeam = null;
+    await member.save();
+
+    return res.json({ message: "Member removed from team" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
 router.patch("/set-lead", async (req, res) => {
   try {
     const { memberId, teamId, companyId } = req.body;

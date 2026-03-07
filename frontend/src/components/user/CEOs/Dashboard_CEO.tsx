@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
 import {
@@ -139,6 +139,9 @@ const Dashboard_CEO = () => {
 	})
 	const [addMemberError, setAddMemberError] = useState('')
 	const [isAddingMember, setIsAddingMember] = useState(false)
+	const [selectedTeamIdForRevoke, setSelectedTeamIdForRevoke] = useState<string | null>(null)
+	const [revokeMemberError, setRevokeMemberError] = useState('')
+	const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null)
 	const [teamOptionsOpenFor, setTeamOptionsOpenFor] = useState<string | null>(null)
 	const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
@@ -211,22 +214,13 @@ const Dashboard_CEO = () => {
 		void fetchTeamsAndMembers()
 	}, [])
 
-	const teamMemberGroups = useMemo(() => {
-		const groups = teamsData.map((team) => ({
-			id: team.id,
-			name: team.name,
-			members: membersData.filter((member) => member.team === team.name),
-		}))
-
-		const unassigned = membersData.filter((member) => !member.team || member.team === 'Unassigned')
-		if (unassigned.length > 0) {
-			groups.push({ id: 'team-unassigned', name: 'Unassigned', members: unassigned })
-		}
-
-		return groups
-	}, [teamsData, membersData])
-	const [expandedTeamId, setExpandedTeamId] = useState<string | null>(ceoDashboardData.teams[0]?.id ?? null)
 	const onlineMembers = membersData.slice(0, 4)
+	const selectedTeamForRevoke = selectedTeamIdForRevoke
+		? teamsData.find((team) => team.id === selectedTeamIdForRevoke) ?? null
+		: null
+	const selectedTeamMembersForRevoke = selectedTeamForRevoke
+		? membersData.filter((member) => member.team === selectedTeamForRevoke.name)
+		: []
 	const companyId = (() => {
 		try {
 			const userRaw = localStorage.getItem('user')
@@ -239,12 +233,6 @@ const Dashboard_CEO = () => {
 			return null
 		}
 	})()
-
-	useEffect(() => {
-		if (!expandedTeamId && teamMemberGroups[0]?.id) {
-			setExpandedTeamId(teamMemberGroups[0].id)
-		}
-	}, [expandedTeamId, teamMemberGroups])
 
 	useEffect(() => {
 		if (!actionAlert) {
@@ -306,6 +294,10 @@ const Dashboard_CEO = () => {
 			setAddMemberForm({ teamId: presetTeamId ?? teamsData[0]?.id ?? '', memberId: '' })
 			setAddMemberError('')
 		}
+		if (modalId === 'revokeMember') {
+			setSelectedTeamIdForRevoke(presetTeamId ?? null)
+			setRevokeMemberError('')
+		}
 		setOpenModal(modalId)
 	}
 
@@ -313,7 +305,43 @@ const Dashboard_CEO = () => {
 		setCreateTeamError('')
 		setInviteError('')
 		setAddMemberError('')
+		setRevokeMemberError('')
+		setSelectedTeamIdForRevoke(null)
 		setOpenModal(null)
+	}
+
+	const handleRevokeMember = async (memberId: string, teamId: string) => {
+		setRevokeMemberError('')
+		setRevokingMemberId(memberId)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			const response = await fetch(`${apiBase}/api/teams/remove-member`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ memberId, teamId, companyId }),
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to revoke from team: ${response.status}`)
+			}
+
+			await fetchTeamsAndMembers()
+			setActionAlert({ type: 'success', message: 'Member removed from team successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to remove member from team. Please try again.'
+			setRevokeMemberError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setRevokingMemberId(null)
+		}
 	}
 
 	const handleDisbandTeam = async (teamId: string) => {
@@ -703,7 +731,7 @@ const Dashboard_CEO = () => {
 										<button className="ceo-btn-sm" onClick={() => openModalById('addMember', team.id)} type="button">
 											Add Member
 										</button>
-										<button className="ceo-btn-danger" onClick={() => openModalById('revokeMember')} type="button">
+										<button className="ceo-btn-danger" onClick={() => openModalById('revokeMember', team.id)} type="button">
 											Revoke Member
 										</button>
 										<div className="ceo-team-options-wrap">
@@ -814,56 +842,42 @@ const Dashboard_CEO = () => {
 							</button>
 						</div>
 						<article className="ceo-list-card">
-							{teamMemberGroups.map((group) => {
-								const isExpanded = expandedTeamId === group.id
-								return (
-									<div className="ceo-team-member-group" key={group.id}>
-										<button
-											className={`ceo-list-row ceo-team-toggle-row ${isExpanded ? 'expanded' : ''}`}
-											onClick={() => setExpandedTeamId((prev) => (prev === group.id ? null : group.id))}
-											type="button"
-										>
-											<div className="ceo-list-main">
-												<div className="ceo-list-title-wrap">
-													<h3>{group.name}</h3>
-													<span className="ceo-chip ceo-chip-dev">{group.members.length} members</span>
-												</div>
-												<p>Click to view members in this team.</p>
-											</div>
-											<div className="ceo-list-actions">
-												<span className="ceo-team-toggle-indicator">{isExpanded ? 'Hide' : 'Show'}</span>
-											</div>
-										</button>
+							{membersData.length === 0 ? (
+								<div className="ceo-team-empty">No members available.</div>
+							) : (
+								membersData.map((member) => {
+									const memberTeam = member.team && member.team !== 'Unassigned' ? teamsData.find((team) => team.name === member.team) : null
 
-										{isExpanded && (
-											<div className="ceo-team-members-container">
-												{group.members.length === 0 ? (
-													<div className="ceo-team-empty">No members assigned yet.</div>
-												) : (
-													group.members.map((member) => (
-														<div className="ceo-team-member-row" key={member.id}>
-															<div className={`ceo-member-avatar tone-${member.tone}`}>{member.initials}</div>
-															<div className="ceo-list-main ceo-list-main-member">
-																<div className="ceo-member-name">{member.name}</div>
-																<div className="ceo-member-role">{member.role}</div>
-															</div>
-															<div className="ceo-list-actions">
-																{member.name.includes('(You)') ? (
-																	<span className="ceo-chip ceo-chip-dev">Admin</span>
-																) : (
-																	<button className="ceo-btn-danger" onClick={() => openModalById('revokeMember')} type="button">
-																		Revoke
-																	</button>
-																)}
-															</div>
-														</div>
-													))
-												)}
+									return (
+									<div className="ceo-team-member-row" key={member.id}>
+										<div className={`ceo-member-avatar tone-${member.tone}`}>{member.initials}</div>
+										<div className="ceo-list-main ceo-list-main-member">
+											<div className="ceo-member-name">{member.name}</div>
+											<div className="ceo-member-role">
+												{member.role}
+												{member.team && member.team !== 'Unassigned' ? ` | ${member.team}` : ''}
 											</div>
-										)}
+										</div>
+										<div className="ceo-list-actions">
+											{member.name.includes('(You)') ? (
+												<span className="ceo-chip ceo-chip-dev">Admin</span>
+											) : !memberTeam ? (
+												<span className="ceo-chip ceo-chip-dev">Unassigned</span>
+											) : (
+												<button
+													className="ceo-btn-danger"
+													onClick={() => void handleRevokeMember(member.id, memberTeam.id)}
+													type="button"
+													disabled={revokingMemberId === member.id}
+												>
+													{revokingMemberId === member.id ? 'Revoking...' : 'Revoke'}
+												</button>
+											)}
+										</div>
 									</div>
-								)
-							})}
+									)
+								})
+							)}
 						</article>
 					</div>
 
@@ -1107,6 +1121,40 @@ const Dashboard_CEO = () => {
 										</select>
 									</label>
 								</>
+							) : openModal === 'revokeMember' ? (
+								<>
+									{revokeMemberError && <p className="form-message form-error">{revokeMemberError}</p>}
+									{selectedTeamForRevoke ? (
+										<>
+											<p className="ceo-member-role">Team: {selectedTeamForRevoke.name}</p>
+											{selectedTeamMembersForRevoke.length === 0 ? (
+												<div className="ceo-team-empty">No members in this team.</div>
+											) : (
+												selectedTeamMembersForRevoke.map((member) => (
+													<div className="ceo-team-member-row" key={member.id}>
+														<div className={`ceo-member-avatar tone-${member.tone}`}>{member.initials}</div>
+														<div className="ceo-list-main ceo-list-main-member">
+															<div className="ceo-member-name">{member.name}</div>
+															<div className="ceo-member-role">{member.role}</div>
+														</div>
+														<div className="ceo-list-actions">
+															<button
+																className="ceo-btn-danger"
+																onClick={() => selectedTeamForRevoke && void handleRevokeMember(member.id, selectedTeamForRevoke.id)}
+																type="button"
+																disabled={revokingMemberId === member.id}
+															>
+																{revokingMemberId === member.id ? 'Revoking...' : 'Revoke'}
+															</button>
+														</div>
+													</div>
+												))
+											)}
+										</>
+									) : (
+										<div className="ceo-team-empty">Select a team row to manage member revokes.</div>
+									)}
+								</>
 							) : (
 								<>
 									<label>
@@ -1132,34 +1180,36 @@ const Dashboard_CEO = () => {
 							<button className="ceo-btn-outline" onClick={closeModal} type="button">
 								Cancel
 							</button>
-							<button
-								className="ceo-btn-primary"
-								onClick={
-									openModal === 'createTeam'
-										? () => void handleCreateTeam()
+							{openModal !== 'revokeMember' && (
+								<button
+									className="ceo-btn-primary"
+									onClick={
+										openModal === 'createTeam'
+											? () => void handleCreateTeam()
+											: openModal === 'invite'
+												? () => void handleSendInvite()
+												: openModal === 'addMember'
+													? () => void handleAddMemberToTeam()
+													: closeModal
+									}
+									type="button"
+									disabled={(openModal === 'createTeam' && isCreatingTeam) || (openModal === 'invite' && isSendingInvite) || (openModal === 'addMember' && isAddingMember)}
+								>
+									{openModal === 'createTeam'
+										? isCreatingTeam
+											? 'Creating...'
+											: 'Create Team'
 										: openModal === 'invite'
-											? () => void handleSendInvite()
+											? isSendingInvite
+												? 'Sending...'
+												: 'Send Invite'
 											: openModal === 'addMember'
-												? () => void handleAddMemberToTeam()
-											: closeModal
-								}
-								type="button"
-								disabled={(openModal === 'createTeam' && isCreatingTeam) || (openModal === 'invite' && isSendingInvite) || (openModal === 'addMember' && isAddingMember)}
-							>
-								{openModal === 'createTeam'
-									? isCreatingTeam
-										? 'Creating...'
-										: 'Create Team'
-									: openModal === 'invite'
-										? isSendingInvite
-											? 'Sending...'
-											: 'Send Invite'
-										: openModal === 'addMember'
-											? isAddingMember
-												? 'Adding...'
-												: 'Add Member'
-										: 'Confirm'}
-							</button>
+												? isAddingMember
+													? 'Adding...'
+													: 'Add Member'
+												: 'Confirm'}
+								</button>
+							)}
 						</div>
 					</div>
 				</div>
