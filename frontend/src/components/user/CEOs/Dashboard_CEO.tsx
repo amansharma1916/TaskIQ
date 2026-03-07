@@ -497,7 +497,7 @@ const Dashboard_CEO = () => {
 	return (
 		<div className="ceo-dashboard-root">
 			<aside className="ceo-sidebar">
-				<button className="ceo-logo-area" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
+				<button className="ceo-logo-area" onClick={() => switchPanel('dashboard')} type="button">
 					<div className="ceo-logo">
 						Task<span>IQ</span>
 					</div>
@@ -506,23 +506,6 @@ const Dashboard_CEO = () => {
 						{ceoDashboardData.orgName} | CEO
 					</div>
 				</button>
-
-				{profileMenuOpen && (
-					<div className="ceo-profile-menu">
-						<button onClick={() => openModalById('editProfile')} type="button">
-							Edit Profile
-						</button>
-						<button onClick={() => switchPanel('settings')} type="button">
-							Preferences
-						</button>
-						<button onClick={() => {setProfileMenuOpen(false)
-							localStorage.removeItem('user')
-							navigate('/login')
-						}} type="button" className="danger">
-							Sign Out
-						</button>
-					</div>
-				)}
 
 				<div className="ceo-nav-scroll">
 					<section className="ceo-nav-section">
@@ -572,13 +555,31 @@ const Dashboard_CEO = () => {
 					</section>
 				</div>
 
-				<button className="ceo-user-card" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
-					<div className="ceo-avatar">{ceoDashboardData.currentUser.initials}</div>
-					<div>
-						<div className="ceo-user-name">{ceoDashboardData.currentUser.name}</div>
-						<div className="ceo-user-role">{ceoDashboardData.currentUser.role}</div>
-					</div>
-				</button>
+				<div className="ceo-user-card-wrapper">
+					<button className="ceo-user-card" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
+						<div className="ceo-avatar">{ceoDashboardData.currentUser.initials}</div>
+						<div>
+							<div className="ceo-user-name">{ceoDashboardData.currentUser.name}</div>
+							<div className="ceo-user-role">{ceoDashboardData.currentUser.role}</div>
+						</div>
+					</button>
+					{profileMenuOpen && (
+						<div className="ceo-profile-menu">
+							<button onClick={() => openModalById('editProfile')} type="button">
+								Edit Profile
+							</button>
+							<button onClick={() => switchPanel('settings')} type="button">
+								Preferences
+							</button>
+							<button onClick={() => {setProfileMenuOpen(false)
+								localStorage.removeItem('user')
+								navigate('/login')
+							}} type="button" className="danger">
+								Sign Out
+							</button>
+						</div>
+					)}
+				</div>
 			</aside>
 
 			<main className="ceo-main">
