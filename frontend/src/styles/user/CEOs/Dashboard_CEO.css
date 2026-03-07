@@ -71,16 +71,24 @@
 	font-size: 0.72rem;
 }
 
+.ceo-user-card-wrapper {
+	position: relative;
+	margin-top: auto;
+	padding: 12px;
+}
+
 .ceo-profile-menu {
 	position: absolute;
-	top: 84px;
-	left: 14px;
-	width: 200px;
+	bottom: 100%;
+	left: 12px;
+	right: 12px;
+	margin-bottom: 8px;
 	z-index: 15;
 	border-radius: 12px;
 	border: 1px solid var(--border);
 	background: var(--bg3);
 	overflow: hidden;
+	box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.3), 0 -2px 4px -1px rgba(0, 0, 0, 0.2);
 }
 
 .ceo-profile-menu button {
@@ -172,7 +180,8 @@
 }
 
 .ceo-user-card {
-	margin: 12px;
+	width: 100%;
+	margin: 0;
 	padding: 10px;
 	border-radius: 10px;
 	border: 1px solid var(--border);
@@ -182,6 +191,11 @@
 	gap: 10px;
 	color: var(--white);
 	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.ceo-user-card:hover {
+	background: rgba(255, 255, 255, 0.08);
 }
 
 .ceo-avatar,
