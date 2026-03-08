@@ -43,6 +43,7 @@ type ApiMember = {
 	_id: string
 	memberName: string
 	memberRole?: string
+	userId?: string | { _id: string } | null
 	memberTeam?: {
 		_id: string
 		teamName?: string
@@ -144,6 +145,8 @@ const Dashboard_CEO = () => {
 	const [selectedTeamIdForRevoke, setSelectedTeamIdForRevoke] = useState<string | null>(null)
 	const [revokeMemberError, setRevokeMemberError] = useState('')
 	const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null)
+	const [removingCompanyMemberId, setRemovingCompanyMemberId] = useState<string | null>(null)
+	const [pendingCompanyRemoval, setPendingCompanyRemoval] = useState<{ id: string; name: string } | null>(null)
 	const [teamOptionsOpenFor, setTeamOptionsOpenFor] = useState<string | null>(null)
 	const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
@@ -167,6 +170,7 @@ const Dashboard_CEO = () => {
 	const displayUserName = storedUser?.name?.trim() || ceoDashboardData.currentUser.name
 	const displayDesignation = storedUser?.role?.trim() || ceoDashboardData.currentUser.role
 	const displayUserInitials = getInitials(displayUserName) || ceoDashboardData.currentUser.initials
+	const isCeoUser = storedUser?.role === 'CEO'
 
 	const fetchTeamsAndMembers = async () => {
 		try {
@@ -187,6 +191,7 @@ const Dashboard_CEO = () => {
 
 			const mappedMembers = membersJson.map((member, index) => ({
 				id: member._id,
+				userId: typeof member.userId === 'string' ? member.userId : member.userId?._id,
 				initials: getInitials(member.memberName),
 				name: member.memberName,
 				role: member.memberRole ?? 'Member',
@@ -344,6 +349,52 @@ const Dashboard_CEO = () => {
 			setActionAlert({ type: 'error', message })
 		} finally {
 			setRevokingMemberId(null)
+		}
+	}
+
+	const promptRemoveMemberFromCompany = (memberId: string, memberName: string) => {
+		setPendingCompanyRemoval({ id: memberId, name: memberName })
+	}
+
+	const closeRemoveMemberAlert = () => {
+		if (removingCompanyMemberId) {
+			return
+		}
+		setPendingCompanyRemoval(null)
+	}
+
+	const handleRemoveMemberFromCompany = async () => {
+		if (!pendingCompanyRemoval) {
+			return
+		}
+
+		const memberId = pendingCompanyRemoval.id
+
+		setRemovingCompanyMemberId(memberId)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			const response = await authorizedFetch(`/api/members/${memberId}`, {
+				method: 'DELETE',
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to remove member: ${response.status}`)
+			}
+
+			await fetchTeamsAndMembers()
+			setPendingCompanyRemoval(null)
+			setActionAlert({ type: 'success', message: 'Member removed from company successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to remove member from company. Please try again.'
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setRemovingCompanyMemberId(null)
 		}
 	}
 
@@ -847,6 +898,9 @@ const Dashboard_CEO = () => {
 							) : (
 								membersData.map((member) => {
 									const memberTeam = member.team && member.team !== 'Unassigned' ? teamsData.find((team) => team.name === member.team) : null
+									const isCurrentUser =
+										(storedUser?.id && (member as { userId?: string }).userId === storedUser.id) || member.name.includes('(You)')
+									const canRemoveMemberFromCompany = isCeoUser && !memberTeam && !isCurrentUser
 
 									return (
 									<div className="ceo-team-member-row" key={member.id}>
@@ -859,19 +913,21 @@ const Dashboard_CEO = () => {
 											</div>
 										</div>
 										<div className="ceo-list-actions">
-											{member.name.includes('(You)') ? (
+											{isCurrentUser ? (
 												<span className="ceo-chip ceo-chip-dev">Admin</span>
-											) : !memberTeam ? (
-												<span className="ceo-chip ceo-chip-dev">Unassigned</span>
-											) : (
+											) : canRemoveMemberFromCompany ? (
 												<button
 													className="ceo-btn-danger"
-													onClick={() => void handleRevokeMember(member.id, memberTeam.id)}
+													onClick={() => promptRemoveMemberFromCompany(member.id, member.name)}
 													type="button"
-													disabled={revokingMemberId === member.id}
+													disabled={removingCompanyMemberId === member.id}
 												>
-													{revokingMemberId === member.id ? 'Revoking...' : 'Revoke'}
+													{removingCompanyMemberId === member.id ? 'Removing...' : 'Remove Member'}
 												</button>
+											) : !memberTeam ? (
+												<span className="ceo-chip ceo-chip-dev">CEO only</span>
+											) : (
+												<span className="ceo-chip ceo-chip-ops">Assigned to team</span>
 											)}
 										</div>
 									</div>
@@ -1210,6 +1266,40 @@ const Dashboard_CEO = () => {
 												: 'Confirm'}
 								</button>
 							)}
+						</div>
+					</div>
+				</div>
+			)}
+
+			{pendingCompanyRemoval && (
+				<div
+					className="ceo-overlay"
+					onClick={(event) => {
+						if (event.currentTarget === event.target) {
+							closeRemoveMemberAlert()
+						}
+					}}
+				>
+					<div className="ceo-modal ceo-confirm-alert" role="alertdialog" aria-modal="true" aria-label="Confirm member removal">
+						<div className="ceo-modal-head">
+							<h3>Remove Member</h3>
+							<button onClick={closeRemoveMemberAlert} type="button" aria-label="Close confirmation">
+								X
+							</button>
+						</div>
+						<div className="ceo-modal-body">
+							<p>
+								Are you sure you want to remove <strong>{pendingCompanyRemoval.name}</strong> from the company?
+							</p>
+							<p className="ceo-confirm-note">This action cannot be undone.</p>
+						</div>
+						<div className="ceo-modal-actions">
+							<button className="ceo-btn-outline" onClick={closeRemoveMemberAlert} type="button" disabled={Boolean(removingCompanyMemberId)}>
+								Cancel
+							</button>
+							<button className="ceo-btn-danger" onClick={() => void handleRemoveMemberFromCompany()} type="button" disabled={Boolean(removingCompanyMemberId)}>
+								{removingCompanyMemberId === pendingCompanyRemoval.id ? 'Removing...' : 'Yes, Remove'}
+							</button>
 						</div>
 					</div>
 				</div>

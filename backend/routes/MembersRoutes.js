@@ -80,16 +80,22 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.delete("/:id", authorizeRoles("CEO"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
       return;
     }
 
-    const member = await Members.findOneAndDelete({ _id: req.params.id, companyId });
+    const member = await Members.findOne({ _id: req.params.id, companyId });
 
     if (!member) return res.status(404).json({ message: "Member not found" });
+
+    if (member.memberTeam) {
+      return res.status(409).json({ message: "Member is assigned to a team. Unassign from team before removing from company." });
+    }
+
+    await Members.findByIdAndDelete(member._id);
 
     if (member.memberTeam) {
       await Teams.findByIdAndUpdate(member.memberTeam, {

@@ -881,6 +881,22 @@
 	margin-top: 14px;
 }
 
+.ceo-confirm-alert {
+	max-width: 440px;
+}
+
+.ceo-confirm-alert .ceo-modal-body p {
+	margin: 0;
+	color: var(--white);
+	line-height: 1.5;
+}
+
+.ceo-confirm-note {
+	margin-top: 10px !important;
+	color: #ffb4b4 !important;
+	font-size: 0.82rem;
+}
+
 .ceo-modal-actions {
 	gap: 10px;
 	justify-content: flex-end;
