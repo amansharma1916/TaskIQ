@@ -3,116 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
 import { authorizedFetch } from '../../../services/apiClient'
 import { getAuthUser, logoutSession, type AuthUser } from '../../../services/auth'
-import {
-	ceoDashboardData,
-	pageTitles,
-	type ModalId,
-	type PanelId,
-	type ProgressItem,
-	type StatCard,
-	type TaskItem,
-} from './CEO_dummy_data'
-
-const toneClassMap = {
-	cyan: 'tone-cyan',
-	purple: 'tone-purple',
-	yellow: 'tone-yellow',
-	green: 'tone-green',
-} as const
-
-const chipClassMap = {
-	dev: 'ceo-chip-dev',
-	design: 'ceo-chip-design',
-	ops: 'ceo-chip-ops',
-	hr: 'ceo-chip-hr',
-} as const
-
-const statusClassMap = {
-	active: 'ceo-status-active',
-	review: 'ceo-status-review',
-	planning: 'ceo-status-planning',
-} as const
-
-const progressToneClassMap = {
-	cyan: 'ceo-fill-cyan',
-	green: 'ceo-fill-green',
-	yellow: 'ceo-fill-yellow',
-} as const
-
-type ApiMember = {
-	_id: string
-	memberName: string
-	memberRole?: string
-	userId?: string | { _id: string } | null
-	memberTeam?: {
-		_id: string
-		teamName?: string
-	} | null
-}
-
-type ApiTeam = {
-	_id: string
-	teamName: string
-	teamDescription?: string
-	teamTags?: string[]
-	totalMembers?: number
-	teamMembers?: Array<{
-		_id: string
-		memberName?: string
-	}>
-}
-
-const avatarTones = ['cyan-purple', 'purple-red', 'yellow-cyan', 'green-purple', 'cyan-green', 'green-cyan', 'muted'] as const
-
-const getInitials = (name: string) => {
-	const parts = name
-		.trim()
-		.split(/\s+/)
-		.filter(Boolean)
-	return parts
-		.slice(0, 2)
-		.map((part) => part[0]?.toUpperCase() ?? '')
-		.join('')
-}
-
-const modalTitles: Record<ModalId, string> = {
-	createTeam: 'Create New Team',
-	disbandTeam: 'Disband Team',
-	addMember: 'Add Member to Team',
-	revokeMember: 'Revoke Member Access',
-	createProject: 'Create New Project',
-	discardProject: 'Discard Project',
-	assignTeam: 'Assign Team to Project',
-	revokeTeam: 'Revoke Team from Project',
-	invite: 'Invite Team Member',
-	editProfile: 'Edit Profile',
-	createTask: 'Create Task',
-}
-
-const DashboardStat = ({ stat }: { stat: StatCard }) => {
-	return (
-		<div className="ceo-stat">
-			<div className="ceo-stat-top">
-				<span className="ceo-stat-label">{stat.label}</span>
-				<span className={`ceo-stat-icon ${toneClassMap[stat.tone]}`}>{stat.label.slice(0, 2).toUpperCase()}</span>
-			</div>
-			<div className="ceo-stat-value">{stat.value}</div>
-			<div className={`ceo-stat-delta ${stat.trend === 'up' ? 'delta-up' : 'delta-down'}`}>{stat.delta}</div>
-		</div>
-	)
-}
-
-const ProgressRow = ({ item }: { item: ProgressItem }) => (
-	<div className="ceo-progress-row" key={item.id}>
-		<div className="ceo-progress-head">
-			<span>{item.name}</span>
-			<span>{item.value}%</span>
-		</div>
-		<div className="ceo-progress-bar">
-			<div className={`ceo-progress-fill ${progressToneClassMap[item.tone]}`} style={{ width: `${item.value}%` }} />
-		</div>
-	</div>
-)
+import { ceoDashboardData } from './CEO_dummy_data'
+import Sidebar from './Components/layout/Sidebar'
+import Topbar from './Components/layout/Topbar'
+import DashboardPanel from './Components/panels/DashboardPanel'
+import TeamsPanel from './Components/panels/TeamsPanel'
+import DashboardStat from './Components/shared/DashboardStat'
+import TaskRow from './Components/shared/TaskRow'
+import type { ApiMember, ApiTeam } from './types/api.types'
+import type { ModalId, PanelId } from './types/dashboard.types'
+import { avatarTones, modalTitles, statusClassMap } from './utils/constants'
+import { getInitials } from './utils/formatters'
 
 const Dashboard_CEO = () => {
 	const navigate = useNavigate()
@@ -556,125 +457,34 @@ const Dashboard_CEO = () => {
 		}
 	}
 
-	const renderTask = (task: TaskItem, showAssignee: boolean) => {
-		const done = taskState[task.id]
-		return (
-			<div className="ceo-task-item" key={task.id}>
-				<button
-					aria-label={`Toggle task ${task.name}`}
-					className={`ceo-task-cb ${done ? 'done' : ''}`}
-					onClick={() => toggleTask(task.id)}
-					type="button"
-				/>
-				<span className={`ceo-task-name ${done ? 'done-text' : ''}`}>{task.name}</span>
-				{showAssignee && <span className="ceo-task-assignee">{task.assignee}</span>}
-				<span className={`ceo-chip ${chipClassMap[task.chipTone]}`}>{task.chip}</span>
-			</div>
-		)
+	const handleProfileSignOut = () => {
+		setProfileMenuOpen(false)
+		void handleSignOut()
 	}
 
 	return (
 		<div className="ceo-dashboard-root">
-			<aside className="ceo-sidebar">
-				<button className="ceo-logo-area" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
-					<div className="ceo-logo">
-						Task<span>IQ</span>
-					</div>
-					<div className="ceo-logo-line" />
-					<div className="ceo-org-label">
-						{displayCompanyName} | {displayDesignation}
-					</div>
-				</button>
-
-				{profileMenuOpen && (
-					<div className="ceo-profile-menu">
-						<button onClick={() => openModalById('editProfile')} type="button">
-							Edit Profile
-						</button>
-						<button onClick={() => switchPanel('settings')} type="button">
-							Preferences
-						</button>
-						<button onClick={() => {
-							setProfileMenuOpen(false)
-							void handleSignOut()
-						}} type="button" className="danger">
-							Sign Out
-						</button>
-					</div>
-				)}
-
-				<div className="ceo-nav-scroll">
-					<section className="ceo-nav-section">
-						<h4>Overview</h4>
-						{ceoDashboardData.nav.overview.map((item) => (
-							<button
-								className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
-								key={item.id}
-								onClick={() => switchPanel(item.id)}
-								type="button"
-							>
-								<span>{item.short}</span>
-								{item.label}
-							</button>
-						))}
-					</section>
-
-					<section className="ceo-nav-section">
-						<h4>Workspace</h4>
-						{ceoDashboardData.nav.workspace.map((item) => (
-							<button
-								className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
-								key={item.id}
-								onClick={() => switchPanel(item.id)}
-								type="button"
-							>
-								<span>{item.short}</span>
-								{item.label}
-								{item.badge && <strong>{item.badge}</strong>}
-							</button>
-						))}
-					</section>
-
-					<section className="ceo-nav-section">
-						<h4>System</h4>
-						{ceoDashboardData.nav.system.map((item) => (
-							<button
-								className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
-								key={item.id}
-								onClick={() => switchPanel(item.id)}
-								type="button"
-							>
-								<span>{item.short}</span>
-								{item.label}
-							</button>
-						))}
-					</section>
-				</div>
-
-				<button className="ceo-user-card" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
-					<div className="ceo-avatar">{displayUserInitials}</div>
-					<div>
-						<div className="ceo-user-name">{displayUserName}</div>
-						<div className="ceo-user-role">{displayDesignation} | {displayDesignation === 'CEO' ? 'Admin' : 'Employee'}</div>
-					</div>
-				</button>
-			</aside>
+			<Sidebar
+				nav={ceoDashboardData.nav}
+				activePanel={activePanel}
+				profileMenuOpen={profileMenuOpen}
+				displayCompanyName={displayCompanyName}
+				displayDesignation={displayDesignation}
+				displayUserInitials={displayUserInitials}
+				displayUserName={displayUserName}
+				onToggleProfileMenu={() => setProfileMenuOpen((prev) => !prev)}
+				onOpenEditProfile={() => openModalById('editProfile')}
+				onOpenPreferences={() => switchPanel('settings')}
+				onSignOut={handleProfileSignOut}
+				onSwitchPanel={switchPanel}
+			/>
 
 			<main className="ceo-main">
-				<header className="ceo-topbar">
-					<h1>{pageTitles[activePanel]}</h1>
-					<div className="ceo-topbar-right">
-						<button className="ceo-btn-outline" onClick={() => openModalById('invite')} type="button">
-							Invite Member
-						</button>
-						<button className="ceo-btn-primary" onClick={() => openModalById('createProject')} type="button">
-							New Project
-						</button>
-						<button className="ceo-notif" type="button" aria-label="Notifications">
-							🔔
-						</button>
-					</div>
-				</header>
+				<Topbar
+					activePanel={activePanel}
+					onInviteMember={() => openModalById('invite')}
+					onCreateProject={() => openModalById('createProject')}
+				/>
 
 				{actionAlert && (
 					<div className={`ceo-action-alert ${actionAlert.type === 'success' ? 'success' : 'error'}`} role="status">
@@ -686,137 +496,26 @@ const Dashboard_CEO = () => {
 				)}
 
 				<section className="ceo-content">
-					<div className={`ceo-panel ${activePanel === 'dashboard' ? 'active' : ''}`}>
-						<div className="ceo-stats-row">{ceoDashboardData.stats.map((stat) => <DashboardStat key={stat.id} stat={stat} />)}</div>
+					<DashboardPanel
+						isActive={activePanel === 'dashboard'}
+						stats={ceoDashboardData.stats}
+						todayTasks={ceoDashboardData.todayTasks}
+						onlineMembers={onlineMembers}
+						projectHealth={ceoDashboardData.projectHealth}
+						activity={ceoDashboardData.activity}
+						taskState={taskState}
+						onToggleTask={toggleTask}
+						onSwitchPanel={switchPanel}
+					/>
 
-						<div className="ceo-grid-three">
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Today&apos;s Tasks</h3>
-									<button className="ceo-link-btn" onClick={() => switchPanel('tasks')} type="button">
-										View all
-									</button>
-								</div>
-								{ceoDashboardData.todayTasks.map((task) => renderTask(task, false))}
-							</article>
-
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Team Online</h3>
-									<button className="ceo-link-btn" onClick={() => switchPanel('members')} type="button">
-										All
-									</button>
-								</div>
-								{onlineMembers.map((member) => (
-									<div className="ceo-member-row" key={member.id}>
-										<div className={`ceo-member-avatar tone-${member.tone}`}>{member.initials}</div>
-										<div>
-											<div className="ceo-member-name">{member.name}</div>
-											<div className="ceo-member-role">{member.role}</div>
-										</div>
-										<div className={`ceo-online-dot ${member.online ? 'online' : 'offline'}`} />
-									</div>
-								))}
-							</article>
-						</div>
-
-						<div className="ceo-grid-two">
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Project Health</h3>
-								</div>
-								{ceoDashboardData.projectHealth.map((item) => (
-									<ProgressRow item={item} key={item.id} />
-								))}
-							</article>
-
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Recent Activity</h3>
-								</div>
-								{ceoDashboardData.activity.map((item) => (
-									<div className="ceo-activity-item" key={item.id}>
-										<span className={`ceo-activity-dot ${toneClassMap[item.tone]}`} />
-										<div>
-											<p>{item.label}</p>
-											<small>{item.time}</small>
-										</div>
-									</div>
-								))}
-							</article>
-						</div>
-					</div>
-
-					<div className={`ceo-panel ${activePanel === 'teams' ? 'active' : ''}`}>
-						<div className="ceo-section-head">
-							<h2>Teams</h2>
-							<div className="ceo-actions-row">
-								<button className="ceo-btn-outline" onClick={() => openModalById('disbandTeam')} type="button">
-									Disband Team
-								</button>
-								<button className="ceo-btn-primary" onClick={() => openModalById('createTeam')} type="button">
-									Create Team
-								</button>
-							</div>
-						</div>
-
-						<article className="ceo-list-card">
-							{teamsData.map((team) => (
-								<div className="ceo-list-row" key={team.id}>
-									<div className="ceo-list-main">
-										<div className="ceo-list-title-wrap">
-											<h3>{team.name}</h3>
-											<span className="ceo-team-tag">{team.tag}</span>
-										</div>
-										<p>{team.description}</p>
-									</div>
-									<div className="ceo-list-avatars">
-										{team.members.map((member) => (
-											<span className={`ceo-mini-avatar tone-${member.tone}`} key={`${team.id}-${member.initials}`}>
-												{member.initials}
-											</span>
-										))}
-										<small>{team.totalMembers} members</small>
-									</div>
-									<div className="ceo-list-actions">
-										<button className="ceo-btn-sm" onClick={() => openModalById('addMember', team.id)} type="button">
-											Add Member
-										</button>
-										<button className="ceo-btn-danger" onClick={() => openModalById('revokeMember', team.id)} type="button">
-											Revoke Member
-										</button>
-										<div className="ceo-team-options-wrap">
-											<button
-												className="ceo-btn-outline"
-												onClick={() => setTeamOptionsOpenFor((prev) => (prev === team.id ? null : team.id))}
-												type="button"
-											>
-												☰
-											</button>
-											{teamOptionsOpenFor === team.id && (
-												<div className="ceo-team-options-menu">
-													<button className="ceo-btn-danger" onClick={() => void handleDisbandTeam(team.id)} type="button">
-														Disband Team
-													</button>
-												</div>
-											)}
-										</div>
-									</div>
-								</div>
-							))}
-							<div className="ceo-list-row ceo-list-row-create">
-								<div className="ceo-list-main">
-									<h3>Create New Team</h3>
-									<p>Group members into focused teams with clear goals and role boundaries.</p>
-								</div>
-								<div className="ceo-list-actions">
-									<button className="ceo-btn-primary" onClick={() => openModalById('createTeam')} type="button">
-										Create Team
-									</button>
-								</div>
-							</div>
-						</article>
-					</div>
+					<TeamsPanel
+						isActive={activePanel === 'teams'}
+						teamsData={teamsData}
+						teamOptionsOpenFor={teamOptionsOpenFor}
+						onOpenModalById={openModalById}
+						onToggleTeamOptions={(teamId) => setTeamOptionsOpenFor((prev) => (prev === teamId ? null : teamId))}
+						onDisbandTeam={(teamId) => void handleDisbandTeam(teamId)}
+					/>
 
 					<div className={`ceo-panel ${activePanel === 'projects' ? 'active' : ''}`}>
 						<div className="ceo-section-head">
@@ -882,7 +581,11 @@ const Dashboard_CEO = () => {
 								New Task
 							</button>
 						</div>
-						<article className="ceo-card">{ceoDashboardData.allTasks.map((task) => renderTask(task, true))}</article>
+						<article className="ceo-card">
+							{ceoDashboardData.allTasks.map((task) => (
+								<TaskRow key={task.id} task={task} done={taskState[task.id]} showAssignee={true} onToggleTask={toggleTask} />
+							))}
+						</article>
 					</div>
 
 					<div className={`ceo-panel ${activePanel === 'members' ? 'active' : ''}`}>
