@@ -85,9 +85,9 @@ export interface ProjectCard {
 	due: string
 	completedTasks: number
 	totalTasks: number
-	team: string
+	teams: string[]
 	progress: number
-	status: 'active' | 'review' | 'planning'
+	status: 'active' | 'review' | 'planning' | 'completed' | 'blocked'
 }
 
 export interface DashboardData {

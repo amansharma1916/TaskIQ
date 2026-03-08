@@ -667,6 +667,16 @@
 	background: rgba(0, 212, 255, 0.14);
 }
 
+.ceo-status-completed {
+	color: var(--green);
+	background: rgba(74, 222, 128, 0.2);
+}
+
+.ceo-status-blocked {
+	color: var(--red);
+	background: rgba(248, 113, 113, 0.16);
+}
+
 .ceo-empty-tile {
 	border: 1.5px dashed var(--border);
 	background: transparent;
@@ -895,6 +905,22 @@
 	margin-top: 10px !important;
 	color: #ffb4b4 !important;
 	font-size: 0.82rem;
+}
+
+.ceo-confirm-projects {
+	margin-top: 10px;
+	padding: 10px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.03);
+	font-size: 0.8rem;
+	color: var(--white);
+}
+
+.ceo-confirm-projects ul {
+	margin: 8px 0 0 16px;
+	padding: 0;
+	color: var(--muted);
 }
 
 .ceo-modal-actions {
@@ -1238,6 +1264,25 @@
 	padding: 4px 0 10px 14px;
 }
 
+.ceo-project-team-check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	font-size: 0.82rem;
+	color: var(--white);
+}
+
+.ceo-project-details-page {
+	min-height: 100vh;
+}
+
+.ceo-project-details-grid {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	gap: 16px;
+}
+
 .ceo-team-member-row {
 	display: flex;
 	align-items: center;
@@ -1295,5 +1340,9 @@
 
 	.ceo-team-members-container {
 		padding-left: 0;
+	}
+
+	.ceo-project-details-grid {
+		grid-template-columns: 1fr;
 	}
 }

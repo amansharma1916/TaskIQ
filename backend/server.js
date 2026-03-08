@@ -6,6 +6,7 @@ import UsersAuthRoutes from './routes/UsersAuthRoutes.js';
 import InviteRoute from './routes/InviteRoute.js';
 import TeamsRoute from './routes/TeamsRoute.js';
 import MembersRoute from './routes/MembersRoutes.js';
+import ProjectsRoute from './routes/ProjectsRoute.js';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/auth/ceo', UsersAuthRoutes);
 app.use('/api/invite', InviteRoute);
 app.use('/api/teams', TeamsRoute);
 app.use('/api/members', MembersRoute);
+app.use('/api/projects', ProjectsRoute);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

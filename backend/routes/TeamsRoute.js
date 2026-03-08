@@ -1,6 +1,7 @@
 import express from "express";
 import Teams from "../database/Schemas/Teams.js";
 import Members from "../database/Schemas/Members.js";
+import Projects from "../database/Schemas/Project.js";
 import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -99,6 +100,32 @@ router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
 
     if (String(team.companyId) !== String(companyId)) {
       return res.status(403).json({ message: "Team not in this company" });
+    }
+
+    const forceDisband = req.query.force === "true";
+
+    const relatedProjects = await Projects.find({
+      companyId,
+      assignedTeams: team._id,
+    }).select("projectName");
+
+    if (relatedProjects.length > 0 && !forceDisband) {
+      const projectNames = relatedProjects.map((project) => project.projectName).filter(Boolean);
+      return res.status(409).json({
+        code: "TEAM_ASSIGNED_TO_PROJECTS",
+        projects: projectNames,
+        message:
+          projectNames.length > 0
+            ? `This team is assigned to: ${projectNames.join(", ")}. Disbanding will remove the team from these projects.`
+            : "This team is assigned to one or more projects. Disbanding will remove the team from those projects.",
+      });
+    }
+
+    if (relatedProjects.length > 0 && forceDisband) {
+      await Projects.updateMany(
+        { companyId, assignedTeams: team._id },
+        { $pull: { assignedTeams: team._id } }
+      );
     }
 
     await Members.updateMany({ memberTeam: team._id }, { $set: { memberTeam: null } });

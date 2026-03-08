@@ -18,6 +18,8 @@ export const statusClassMap = {
 	active: 'ceo-status-active',
 	review: 'ceo-status-review',
 	planning: 'ceo-status-planning',
+	completed: 'ceo-status-completed',
+	blocked: 'ceo-status-blocked',
 } as const
 
 export const progressToneClassMap = {
