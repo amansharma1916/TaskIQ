@@ -6,6 +6,8 @@ import UsersAuthRoutes from './routes/UsersAuthRoutes.js';
 import InviteRoute from './routes/InviteRoute.js';
 import TeamsRoute from './routes/TeamsRoute.js';
 import MembersRoute from './routes/MembersRoutes.js';
+import ProjectsRoute from './routes/ProjectsRoute.js';
+import TasksRoute from './routes/TasksRoute.js';
 
 dotenv.config();
 
@@ -16,7 +18,7 @@ app.use(express.json());
 app.use(cors(
     {
         origin: process.env.FRONTEND_URL,
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
         allowedHeaders: ['Content-Type', 'Authorization'],
     }
 ));
@@ -31,6 +33,8 @@ app.use('/api/auth/ceo', UsersAuthRoutes);
 app.use('/api/invite', InviteRoute);
 app.use('/api/teams', TeamsRoute);
 app.use('/api/members', MembersRoute);
+app.use('/api/projects', ProjectsRoute);
+app.use('/api/tasks', TasksRoute);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

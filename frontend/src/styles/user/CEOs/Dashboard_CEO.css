@@ -403,52 +403,15 @@
 	font-size: 0.78rem;
 }
 
-.ceo-task-item,
 .ceo-member-row,
 .ceo-activity-item {
 	padding: 10px 0;
 	border-bottom: 1px solid var(--border);
 }
 
-.ceo-task-item:last-child,
 .ceo-member-row:last-child,
 .ceo-activity-item:last-child {
 	border-bottom: 0;
-}
-
-.ceo-task-item {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.ceo-task-cb {
-	width: 16px;
-	height: 16px;
-	border-radius: 4px;
-	border: 1px solid var(--border);
-	background: transparent;
-	cursor: pointer;
-}
-
-.ceo-task-cb.done {
-	background: var(--cyan);
-	border-color: var(--cyan);
-}
-
-.ceo-task-name {
-	flex: 1;
-	font-size: 0.86rem;
-}
-
-.ceo-task-name.done-text {
-	color: var(--muted);
-	text-decoration: line-through;
-}
-
-.ceo-task-assignee {
-	font-size: 0.73rem;
-	color: var(--muted);
 }
 
 .ceo-chip {
@@ -667,6 +630,16 @@
 	background: rgba(0, 212, 255, 0.14);
 }
 
+.ceo-status-completed {
+	color: var(--green);
+	background: rgba(74, 222, 128, 0.2);
+}
+
+.ceo-status-blocked {
+	color: var(--red);
+	background: rgba(248, 113, 113, 0.16);
+}
+
 .ceo-empty-tile {
 	border: 1.5px dashed var(--border);
 	background: transparent;
@@ -879,6 +852,38 @@
 
 .ceo-modal-body {
 	margin-top: 14px;
+}
+
+.ceo-confirm-alert {
+	max-width: 440px;
+}
+
+.ceo-confirm-alert .ceo-modal-body p {
+	margin: 0;
+	color: var(--white);
+	line-height: 1.5;
+}
+
+.ceo-confirm-note {
+	margin-top: 10px !important;
+	color: #ffb4b4 !important;
+	font-size: 0.82rem;
+}
+
+.ceo-confirm-projects {
+	margin-top: 10px;
+	padding: 10px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.03);
+	font-size: 0.8rem;
+	color: var(--white);
+}
+
+.ceo-confirm-projects ul {
+	margin: 8px 0 0 16px;
+	padding: 0;
+	color: var(--muted);
 }
 
 .ceo-modal-actions {
@@ -1222,6 +1227,25 @@
 	padding: 4px 0 10px 14px;
 }
 
+.ceo-project-team-check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	font-size: 0.82rem;
+	color: var(--white);
+}
+
+.ceo-project-details-page {
+	min-height: 100vh;
+}
+
+.ceo-project-details-grid {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	gap: 16px;
+}
+
 .ceo-team-member-row {
 	display: flex;
 	align-items: center;
@@ -1279,5 +1303,9 @@
 
 	.ceo-team-members-container {
 		padding-left: 0;
+	}
+
+	.ceo-project-details-grid {
+		grid-template-columns: 1fr;
 	}
 }

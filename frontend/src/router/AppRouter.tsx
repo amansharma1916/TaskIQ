@@ -4,6 +4,7 @@ import RegisterPage from '../components/public/RegisterPage'
 import LoginPage from '../components/public/LoginPage'
 import InviteRegisterPage from '../components/public/InviteRegisterPage'
 import Home from '../components/private/Home'
+import ProjectDetails from '../components/user/CEOs/ProjectDetails'
 import ProtectRoute from '../protection/ProtectRoute'
 import RoleRender from '../protection/RoleRender'
 
@@ -37,6 +38,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectRoute>
         <RoleRender />
+      </ProtectRoute>
+    ),
+  },
+  {
+    path: '/ceo/projects/:projectId',
+    element: (
+      <ProtectRoute>
+        <ProjectDetails />
       </ProtectRoute>
     ),
   },

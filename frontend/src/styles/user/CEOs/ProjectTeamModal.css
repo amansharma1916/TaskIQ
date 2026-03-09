@@ -1,0 +1,142 @@
+.ptm-modal {
+	width: 680px;
+}
+
+.ptm-shell {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.ptm-top-row {
+	display: grid;
+	grid-template-columns: 1.35fr 1fr;
+	gap: 12px;
+	align-items: end;
+}
+
+.ptm-field {
+	margin-bottom: 0;
+}
+
+.ptm-field span {
+	display: inline-block;
+	font-size: 0.76rem;
+	font-weight: 600;
+	color: var(--muted);
+	margin-bottom: 6px;
+}
+
+.ptm-summary {
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 10px 12px;
+	background: rgba(255, 255, 255, 0.03);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.ptm-summary strong {
+	font-size: 0.82rem;
+	font-family: 'Space Grotesk', sans-serif;
+	color: var(--white);
+}
+
+.ptm-summary small {
+	font-size: 0.74rem;
+	color: var(--cyan);
+}
+
+.ptm-current-teams {
+	margin: 0;
+	font-size: 0.8rem;
+	color: var(--muted);
+}
+
+.ptm-team-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+	max-height: 280px;
+	overflow-y: auto;
+	padding-right: 4px;
+}
+
+.ptm-team-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 9px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 10px;
+	background: rgba(255, 255, 255, 0.02);
+	cursor: pointer;
+	transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.ptm-team-card:hover {
+	border-color: rgba(0, 212, 255, 0.46);
+	background: rgba(0, 212, 255, 0.08);
+}
+
+.ptm-team-card.selected {
+	border-color: rgba(0, 212, 255, 0.62);
+	background: rgba(0, 212, 255, 0.14);
+}
+
+.ptm-team-card input {
+	margin-top: 2px;
+	accent-color: var(--cyan);
+}
+
+.ptm-team-card-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ptm-team-card-text span {
+	font-size: 0.84rem;
+	font-weight: 600;
+	color: var(--white);
+}
+
+.ptm-team-card-text small {
+	font-size: 0.72rem;
+	color: var(--muted);
+}
+
+.ptm-actions {
+	justify-content: space-between;
+}
+
+.ptm-actions .ceo-btn-primary {
+	min-width: 160px;
+}
+
+@media (max-width: 760px) {
+	.ptm-modal {
+		width: 100%;
+	}
+
+	.ptm-top-row {
+		grid-template-columns: 1fr;
+	}
+
+	.ptm-team-grid {
+		grid-template-columns: 1fr;
+		max-height: 220px;
+	}
+
+	.ptm-actions {
+		flex-direction: column-reverse;
+		align-items: stretch;
+	}
+
+	.ptm-actions .ceo-btn-primary,
+	.ptm-actions .ceo-btn-outline {
+		width: 100%;
+	}
+}

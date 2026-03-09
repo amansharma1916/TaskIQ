@@ -1,117 +1,107 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
+import '../../../styles/user/CEOs/ProjectTeamModal.css'
+import '../../../styles/user/CEOs/TaskPanel.css'
 import { authorizedFetch } from '../../../services/apiClient'
 import { getAuthUser, logoutSession, type AuthUser } from '../../../services/auth'
-import {
-	ceoDashboardData,
-	pageTitles,
-	type ModalId,
-	type PanelId,
-	type ProgressItem,
-	type StatCard,
-	type TaskItem,
-} from './CEO_dummy_data'
+import { ceoDashboardData } from './CEO_dummy_data'
+import Sidebar from './Components/layout/Sidebar'
+import Topbar from './Components/layout/Topbar'
+import DashboardPanel from './Components/panels/DashboardPanel'
+import TeamsPanel from './Components/panels/TeamsPanel'
+import ProjectsPanel from './Components/panels/ProjectsPanel'
+import TasksPanel from './Components/panels/TasksPanel'
+import TaskModal, { type TaskFormValue } from './Components/panels/TaskModal'
+import DashboardStat from './Components/shared/DashboardStat'
+import type { ApiMember, ApiProject, ApiProjectStatus, ApiTask, ApiTaskStatus, ApiTeam } from './types/api.types'
+import type { ModalId, PanelId, ProgressItem, ProjectCard, StatCard, TaskItem } from './types/dashboard.types'
+import { avatarTones, modalTitles } from './utils/constants'
+import { getInitials } from './utils/formatters'
+import { assignTeams, createProject, deleteProject, getProjects, revokeTeams } from '../../../services/projects'
+import { createTask, deleteTask, getTasks, updateTask, updateTaskStatus } from '../../../services/tasks'
+import type { TaskFiltersValue } from './Components/panels/TaskFilters'
 
-const toneClassMap = {
-	cyan: 'tone-cyan',
-	purple: 'tone-purple',
-	yellow: 'tone-yellow',
-	green: 'tone-green',
-} as const
+const formatProjectDueLabel = (dateValue?: string | null): string => {
+	if (!dateValue) {
+		return 'No due date'
+	}
 
-const chipClassMap = {
-	dev: 'ceo-chip-dev',
-	design: 'ceo-chip-design',
-	ops: 'ceo-chip-ops',
-	hr: 'ceo-chip-hr',
-} as const
+	const parsed = new Date(dateValue)
+	if (Number.isNaN(parsed.getTime())) {
+		return 'No due date'
+	}
 
-const statusClassMap = {
-	active: 'ceo-status-active',
-	review: 'ceo-status-review',
-	planning: 'ceo-status-planning',
-} as const
-
-const progressToneClassMap = {
-	cyan: 'ceo-fill-cyan',
-	green: 'ceo-fill-green',
-	yellow: 'ceo-fill-yellow',
-} as const
-
-type ApiMember = {
-	_id: string
-	memberName: string
-	memberRole?: string
-	memberTeam?: {
-		_id: string
-		teamName?: string
-	} | null
+	return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-type ApiTeam = {
-	_id: string
-	teamName: string
-	teamDescription?: string
-	teamTags?: string[]
-	totalMembers?: number
-	teamMembers?: Array<{
-		_id: string
-		memberName?: string
-	}>
+const mapApiProjectToCard = (project: ApiProject): ProjectCard => ({
+	id: project._id,
+	name: project.projectName,
+	description: project.projectDescription?.trim() || 'No description available yet.',
+	due: formatProjectDueLabel(project.dueDate ?? null),
+	completedTasks: project.completedTasks ?? 0,
+	totalTasks: project.totalTasks ?? 0,
+	teams: (project.assignedTeams ?? []).map((team) => team.teamName || 'Team'),
+	progress: project.progress ?? 0,
+	status: project.projectStatus,
+})
+
+const mapDummyTaskToApiTask = (task: (typeof ceoDashboardData.allTasks)[number], projectId: string): ApiTask => ({
+	_id: task.id,
+	title: task.name,
+	description: '',
+	status: task.done ? 'done' : 'todo',
+	priority: task.chipTone === 'ops' ? 'high' : task.chipTone === 'hr' ? 'low' : 'medium',
+	dueDate: null,
+	projectId: {
+		_id: projectId,
+		projectName: 'Fallback Project',
+	},
+	assignee: task.assignee
+		? {
+				_id: 'fallback-assignee',
+				memberName: task.assignee,
+			}
+		: null,
+})
+
+const toDateAtStartOfDay = (value?: string | null): Date | null => {
+	if (!value) {
+		return null
+	}
+
+	const parsed = new Date(value)
+	if (Number.isNaN(parsed.getTime())) {
+		return null
+	}
+
+	return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
 }
 
-const avatarTones = ['cyan-purple', 'purple-red', 'yellow-cyan', 'green-purple', 'cyan-green', 'green-cyan', 'muted'] as const
+const mapPriorityToChip = (priority: ApiTask['priority']): Pick<TaskItem, 'chip' | 'chipTone'> => {
+	if (priority === 'high') {
+		return { chip: 'High', chipTone: 'ops' }
+	}
 
-const getInitials = (name: string) => {
-	const parts = name
-		.trim()
-		.split(/\s+/)
-		.filter(Boolean)
-	return parts
-		.slice(0, 2)
-		.map((part) => part[0]?.toUpperCase() ?? '')
-		.join('')
+	if (priority === 'low') {
+		return { chip: 'Low', chipTone: 'hr' }
+	}
+
+	return { chip: 'Medium', chipTone: 'dev' }
 }
 
-const modalTitles: Record<ModalId, string> = {
-	createTeam: 'Create New Team',
-	disbandTeam: 'Disband Team',
-	addMember: 'Add Member to Team',
-	revokeMember: 'Revoke Member Access',
-	createProject: 'Create New Project',
-	discardProject: 'Discard Project',
-	assignTeam: 'Assign Team to Project',
-	revokeTeam: 'Revoke Team from Project',
-	invite: 'Invite Team Member',
-	editProfile: 'Edit Profile',
-	createTask: 'Create Task',
-}
+const mapProgressTone = (value: number): ProgressItem['tone'] => {
+	if (value >= 80) {
+		return 'green'
+	}
 
-const DashboardStat = ({ stat }: { stat: StatCard }) => {
-	return (
-		<div className="ceo-stat">
-			<div className="ceo-stat-top">
-				<span className="ceo-stat-label">{stat.label}</span>
-				<span className={`ceo-stat-icon ${toneClassMap[stat.tone]}`}>{stat.label.slice(0, 2).toUpperCase()}</span>
-			</div>
-			<div className="ceo-stat-value">{stat.value}</div>
-			<div className={`ceo-stat-delta ${stat.trend === 'up' ? 'delta-up' : 'delta-down'}`}>{stat.delta}</div>
-		</div>
-	)
-}
+	if (value >= 50) {
+		return 'cyan'
+	}
 
-const ProgressRow = ({ item }: { item: ProgressItem }) => (
-	<div className="ceo-progress-row" key={item.id}>
-		<div className="ceo-progress-head">
-			<span>{item.name}</span>
-			<span>{item.value}%</span>
-		</div>
-		<div className="ceo-progress-bar">
-			<div className={`ceo-progress-fill ${progressToneClassMap[item.tone]}`} style={{ width: `${item.value}%` }} />
-		</div>
-	</div>
-)
+	return 'yellow'
+}
 
 const Dashboard_CEO = () => {
 	const navigate = useNavigate()
@@ -121,6 +111,24 @@ const Dashboard_CEO = () => {
 	const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 	const [teamsData, setTeamsData] = useState(ceoDashboardData.teams)
 	const [membersData, setMembersData] = useState(ceoDashboardData.members)
+	const [projectsData, setProjectsData] = useState<ProjectCard[]>(ceoDashboardData.projects)
+	const [selectedProjectIdForModal, setSelectedProjectIdForModal] = useState<string | null>(null)
+	const [createProjectForm, setCreateProjectForm] = useState({
+		projectName: '',
+		projectDescription: '',
+		projectStatus: 'planning' as ApiProjectStatus,
+		dueDate: '',
+		progress: 0,
+		completedTasks: 0,
+		totalTasks: 0,
+		assignedTeams: [] as string[],
+	})
+	const [projectActionError, setProjectActionError] = useState('')
+	const [isCreatingProject, setIsCreatingProject] = useState(false)
+	const [isDeletingProject, setIsDeletingProject] = useState(false)
+	const [isAssigningProjectTeams, setIsAssigningProjectTeams] = useState(false)
+	const [isRevokingProjectTeams, setIsRevokingProjectTeams] = useState(false)
+	const [projectTeamSelection, setProjectTeamSelection] = useState<string[]>([])
 	const [createTeamForm, setCreateTeamForm] = useState({
 		teamName: '',
 		teamDescription: '',
@@ -144,14 +152,36 @@ const Dashboard_CEO = () => {
 	const [selectedTeamIdForRevoke, setSelectedTeamIdForRevoke] = useState<string | null>(null)
 	const [revokeMemberError, setRevokeMemberError] = useState('')
 	const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null)
+	const [removingCompanyMemberId, setRemovingCompanyMemberId] = useState<string | null>(null)
+	const [pendingCompanyRemoval, setPendingCompanyRemoval] = useState<{ id: string; name: string } | null>(null)
+	const [pendingTeamDisband, setPendingTeamDisband] = useState<{
+		teamId: string
+		teamName: string
+		message: string
+		projects: string[]
+	} | null>(null)
+	const [forceDisbandingTeamId, setForceDisbandingTeamId] = useState<string | null>(null)
 	const [teamOptionsOpenFor, setTeamOptionsOpenFor] = useState<string | null>(null)
 	const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
-		const map: Record<string, boolean> = {}
-		for (const item of [...ceoDashboardData.todayTasks, ...ceoDashboardData.allTasks]) {
-			map[item.id] = item.done
-		}
-		return map
+	const [tasksData, setTasksData] = useState<ApiTask[]>([])
+	const [taskActionError, setTaskActionError] = useState('')
+	const [isSavingTask, setIsSavingTask] = useState(false)
+	const [taskFilters, setTaskFilters] = useState<TaskFiltersValue>({
+		status: 'all',
+		priority: 'all',
+		projectId: 'all',
+		teamId: 'all',
+		query: '',
+	})
+	const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+	const [taskForm, setTaskForm] = useState<TaskFormValue>({
+		title: '',
+		description: '',
+		status: 'todo',
+		priority: 'medium',
+		dueDate: '',
+		projectId: '',
+		teamId: '',
 	})
 	const [notificationState, setNotificationState] = useState<Record<string, boolean>>(() => {
 		const map: Record<string, boolean> = {}
@@ -167,8 +197,10 @@ const Dashboard_CEO = () => {
 	const displayUserName = storedUser?.name?.trim() || ceoDashboardData.currentUser.name
 	const displayDesignation = storedUser?.role?.trim() || ceoDashboardData.currentUser.role
 	const displayUserInitials = getInitials(displayUserName) || ceoDashboardData.currentUser.initials
+	const isCeoUser = storedUser?.role === 'CEO'
+	const companyId = storedUser?.companyId ?? null
 
-	const fetchTeamsAndMembers = async () => {
+	const fetchTeamsAndMembers = useCallback(async () => {
 		try {
 			if (!companyId) {
 				throw new Error('Company not found for current user')
@@ -187,6 +219,7 @@ const Dashboard_CEO = () => {
 
 			const mappedMembers = membersJson.map((member, index) => ({
 				id: member._id,
+				userId: typeof member.userId === 'string' ? member.userId : member.userId?._id,
 				initials: getInitials(member.memberName),
 				name: member.memberName,
 				role: member.memberRole ?? 'Member',
@@ -217,11 +250,47 @@ const Dashboard_CEO = () => {
 		} catch (error) {
 			console.error('Using fallback CEO team/member data:', error)
 		}
-	}
+	}, [companyId])
+
+	const fetchProjectsData = useCallback(async () => {
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user')
+			}
+
+			const projects = await getProjects()
+			setProjectsData(projects.map(mapApiProjectToCard))
+		} catch (error) {
+			console.error('Using fallback CEO project data:', error)
+		}
+	}, [companyId])
+
+	const fetchTasksData = useCallback(async (projectHintId?: string | null) => {
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user')
+			}
+
+			const fetchedTasks = await getTasks()
+			setTasksData(fetchedTasks)
+		} catch (error) {
+			console.error('Using fallback CEO task data:', error)
+			const fallbackProjectId = projectHintId || projectsData[0]?.id || 'fallback-project'
+			setTasksData(ceoDashboardData.allTasks.map((task) => mapDummyTaskToApiTask(task, fallbackProjectId)))
+		}
+	}, [companyId, projectsData])
 
 	useEffect(() => {
-		void fetchTeamsAndMembers()
-	}, [])
+		void Promise.all([fetchTeamsAndMembers(), fetchProjectsData()])
+	}, [fetchProjectsData, fetchTeamsAndMembers])
+
+	useEffect(() => {
+		if (projectsData.length === 0) {
+			return
+		}
+
+		void fetchTasksData(projectsData[0]?.id)
+	}, [fetchTasksData, projectsData])
 
 	const onlineMembers = membersData.slice(0, 4)
 	const selectedTeamForRevoke = selectedTeamIdForRevoke
@@ -230,7 +299,200 @@ const Dashboard_CEO = () => {
 	const selectedTeamMembersForRevoke = selectedTeamForRevoke
 		? membersData.filter((member) => member.team === selectedTeamForRevoke.name)
 		: []
-	const companyId = storedUser?.companyId ?? null
+	const selectedProjectForModal = selectedProjectIdForModal
+		? projectsData.find((project) => project.id === selectedProjectIdForModal) ?? null
+		: null
+	const selectedTaskProject = taskForm.projectId ? projectsData.find((project) => project.id === taskForm.projectId) ?? null : null
+	const taskProjectTeams = selectedTaskProject
+		? teamsData.filter((team) => selectedTaskProject.teams.includes(team.name))
+		: teamsData
+	const selectedProjectAssignedTeamIds = selectedProjectForModal
+		? teamsData.filter((team) => selectedProjectForModal.teams.includes(team.name)).map((team) => team.id)
+		: []
+	const isProjectTeamModal = openModal === 'assignTeam' || openModal === 'revokeTeam'
+	const dynamicNav = useMemo(
+		() => ({
+			...ceoDashboardData.nav,
+			workspace: ceoDashboardData.nav.workspace.map((item) =>
+				item.id === 'projects' ? { ...item, badge: String(projectsData.length) } : item
+			),
+		}),
+		[projectsData.length]
+	)
+	const dashboardStats = useMemo<StatCard[]>(() => {
+		const totalProjects = projectsData.length
+		const activeProjects = projectsData.filter((project) => project.status === 'active').length
+		const openTasks = tasksData.filter((task) => task.status !== 'done').length
+		const overdueOpenTasks = tasksData.filter((task) => {
+			if (task.status === 'done') {
+				return false
+			}
+
+			const dueDate = toDateAtStartOfDay(task.dueDate)
+			if (!dueDate) {
+				return false
+			}
+
+			const today = toDateAtStartOfDay(new Date().toISOString())
+			return today ? dueDate.getTime() < today.getTime() : false
+		}).length
+		const doneTasks = tasksData.filter((task) => task.status === 'done').length
+		const sprintProgress = tasksData.length > 0 ? Math.round((doneTasks / tasksData.length) * 100) : 0
+
+		return [
+			{
+				id: 'active-projects',
+				label: 'Active Projects',
+				value: String(activeProjects),
+				delta: `${totalProjects} total projects`,
+				trend: activeProjects > 0 ? 'up' : 'down',
+				tone: 'cyan',
+			},
+			{
+				id: 'team-members',
+				label: 'Team Members',
+				value: String(membersData.length),
+				delta: `${teamsData.length} teams`,
+				trend: membersData.length > 0 ? 'up' : 'down',
+				tone: 'purple',
+			},
+			{
+				id: 'open-tasks',
+				label: 'Open Tasks',
+				value: String(openTasks),
+				delta: overdueOpenTasks > 0 ? `${overdueOpenTasks} overdue` : 'No overdue tasks',
+				trend: overdueOpenTasks > 0 ? 'down' : 'up',
+				tone: 'yellow',
+			},
+			{
+				id: 'sprint-progress',
+				label: 'Sprint Progress',
+				value: `${sprintProgress}%`,
+				delta: doneTasks > 0 ? `${doneTasks} completed` : 'No tasks completed yet',
+				trend: sprintProgress >= 50 ? 'up' : 'down',
+				tone: 'green',
+			},
+		]
+	}, [membersData.length, projectsData, tasksData, teamsData.length])
+
+	const dashboardTodayTasks = useMemo<TaskItem[]>(() => {
+		const today = toDateAtStartOfDay(new Date().toISOString())
+		const dueToday = tasksData
+			.filter((task) => {
+				const dueDate = toDateAtStartOfDay(task.dueDate)
+				if (!dueDate || !today) {
+					return false
+				}
+
+				return dueDate.getTime() === today.getTime()
+			})
+			.slice(0, 5)
+
+		const source = dueToday.length > 0 ? dueToday : tasksData.slice(0, 5)
+
+		return source.map((task) => {
+			const chip = mapPriorityToChip(task.priority)
+			return {
+				id: task._id,
+				name: task.title,
+				chip: chip.chip,
+				chipTone: chip.chipTone,
+				done: task.status === 'done',
+				assignee: task.assignee?.memberName,
+			}
+		})
+	}, [tasksData])
+
+	const todayTaskLookup = useMemo(() => {
+		return new Map(dashboardTodayTasks.map((task) => [task.id, tasksData.find((item) => item._id === task.id)]))
+	}, [dashboardTodayTasks, tasksData])
+
+	const dashboardTaskState = useMemo(() => {
+		const map: Record<string, boolean> = {}
+		for (const task of dashboardTodayTasks) {
+			map[task.id] = task.done
+		}
+		return map
+	}, [dashboardTodayTasks])
+
+	const projectHealthItems = useMemo<ProgressItem[]>(() => {
+		return projectsData.slice(0, 4).map((project) => ({
+			id: project.id,
+			name: project.name,
+			value: project.progress,
+			tone: mapProgressTone(project.progress),
+		}))
+	}, [projectsData])
+
+	const analyticsStats = useMemo<StatCard[]>(() => {
+		const completedTasks = tasksData.filter((task) => task.status === 'done')
+		const overdueTasks = tasksData.filter((task) => {
+			if (task.status === 'done') {
+				return false
+			}
+
+			const dueDate = toDateAtStartOfDay(task.dueDate)
+			const today = toDateAtStartOfDay(new Date().toISOString())
+			return dueDate && today ? dueDate.getTime() < today.getTime() : false
+		}).length
+		const velocity = tasksData.length > 0 ? Math.round((completedTasks.length / tasksData.length) * 100) : 0
+
+		const durationsInDays = completedTasks
+			.map((task) => {
+				if (!task.createdAt || !task.updatedAt) {
+					return null
+				}
+
+				const createdAt = new Date(task.createdAt)
+				const updatedAt = new Date(task.updatedAt)
+				if (Number.isNaN(createdAt.getTime()) || Number.isNaN(updatedAt.getTime())) {
+					return null
+				}
+
+				const ms = Math.max(0, updatedAt.getTime() - createdAt.getTime())
+				return ms / (1000 * 60 * 60 * 24)
+			})
+			.filter((value): value is number => value !== null)
+
+		const avgCompletionDays = durationsInDays.length
+			? `${(durationsInDays.reduce((total, value) => total + value, 0) / durationsInDays.length).toFixed(1)}d`
+			: '--'
+
+		return [
+			{
+				id: 'as1',
+				label: 'Tasks Completed',
+				value: String(completedTasks.length),
+				delta: `${tasksData.length} total tasks`,
+				trend: completedTasks.length > 0 ? 'up' : 'down',
+				tone: 'green',
+			},
+			{
+				id: 'as2',
+				label: 'Avg Completion',
+				value: avgCompletionDays,
+				delta: durationsInDays.length > 0 ? 'Based on completed tasks' : 'Waiting for completion data',
+				trend: durationsInDays.length > 0 ? 'up' : 'down',
+				tone: 'cyan',
+			},
+			{
+				id: 'as3',
+				label: 'Overdue',
+				value: String(overdueTasks),
+				delta: overdueTasks > 0 ? 'Needs attention' : 'All tasks on schedule',
+				trend: overdueTasks > 0 ? 'down' : 'up',
+				tone: 'yellow',
+			},
+			{
+				id: 'as4',
+				label: 'Team Velocity',
+				value: `${velocity}%`,
+				delta: `${projectsData.length} active workstreams`,
+				trend: velocity >= 50 ? 'up' : 'down',
+				tone: 'purple',
+			},
+		]
+	}, [projectsData.length, tasksData])
 
 	useEffect(() => {
 		if (!actionAlert) {
@@ -269,7 +531,12 @@ const Dashboard_CEO = () => {
 	}, [teamOptionsOpenFor])
 
 	const toggleTask = (taskId: string) => {
-		setTaskState((prev) => ({ ...prev, [taskId]: !prev[taskId] }))
+		const selectedTask = todayTaskLookup.get(taskId)
+		if (!selectedTask) {
+			return
+		}
+
+		void handleToggleTaskStatus(selectedTask)
 	}
 
 	const switchPanel = (panel: PanelId) => {
@@ -278,7 +545,7 @@ const Dashboard_CEO = () => {
 		setTeamOptionsOpenFor(null)
 	}
 
-	const openModalById = (modalId: ModalId, presetTeamId?: string) => {
+	const openModalById = (modalId: ModalId, presetEntityId?: string) => {
 		setProfileMenuOpen(false)
 		if (modalId === 'createTeam') {
 			setCreateTeamForm({ teamName: '', teamDescription: '', teamTags: '' })
@@ -289,12 +556,52 @@ const Dashboard_CEO = () => {
 			setInviteError('')
 		}
 		if (modalId === 'addMember') {
-			setAddMemberForm({ teamId: presetTeamId ?? teamsData[0]?.id ?? '', memberId: '' })
+			setAddMemberForm({ teamId: presetEntityId ?? teamsData[0]?.id ?? '', memberId: '' })
 			setAddMemberError('')
 		}
 		if (modalId === 'revokeMember') {
-			setSelectedTeamIdForRevoke(presetTeamId ?? null)
+			setSelectedTeamIdForRevoke(presetEntityId ?? null)
 			setRevokeMemberError('')
+		}
+		if (modalId === 'createProject') {
+			setCreateProjectForm({
+				projectName: '',
+				projectDescription: '',
+				projectStatus: 'planning',
+				dueDate: '',
+				progress: 0,
+				completedTasks: 0,
+				totalTasks: 0,
+				assignedTeams: [],
+			})
+			setProjectActionError('')
+		}
+		if (modalId === 'discardProject') {
+			setSelectedProjectIdForModal(presetEntityId ?? projectsData[0]?.id ?? null)
+			setProjectActionError('')
+		}
+		if (modalId === 'assignTeam' || modalId === 'revokeTeam') {
+			const targetProjectId = presetEntityId ?? projectsData[0]?.id ?? null
+			setSelectedProjectIdForModal(targetProjectId)
+			setProjectActionError('')
+			if (targetProjectId) {
+				const project = projectsData.find((item) => item.id === targetProjectId)
+				const assignedTeamIds = teamsData.filter((team) => (project?.teams ?? []).includes(team.name)).map((team) => team.id)
+				setProjectTeamSelection(modalId === 'assignTeam' ? [] : assignedTeamIds)
+			}
+		}
+		if (modalId === 'createTask') {
+			setTaskActionError(projectsData.length === 0 ? 'Create a project first before adding tasks.' : '')
+			setEditingTaskId(null)
+			setTaskForm({
+				title: '',
+				description: '',
+				status: 'todo',
+				priority: 'medium',
+				dueDate: '',
+				projectId: presetEntityId ?? projectsData[0]?.id ?? '',
+				teamId: '',
+			})
 		}
 		setOpenModal(modalId)
 	}
@@ -304,8 +611,109 @@ const Dashboard_CEO = () => {
 		setInviteError('')
 		setAddMemberError('')
 		setRevokeMemberError('')
+		setProjectActionError('')
+		setTaskActionError('')
 		setSelectedTeamIdForRevoke(null)
+		setSelectedProjectIdForModal(null)
+		setProjectTeamSelection([])
 		setOpenModal(null)
+	}
+
+	const handleEditTask = (task: ApiTask) => {
+		setEditingTaskId(task._id)
+		setTaskActionError('')
+		setTaskForm({
+			title: task.title,
+			description: task.description || '',
+			status: task.status,
+			priority: task.priority,
+			dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : '',
+			projectId: task.projectId?._id || projectsData[0]?.id || '',
+			teamId: task.teamId?._id || '',
+		})
+		setOpenModal('createTask')
+	}
+
+	const handleSaveTask = async () => {
+		if (!taskForm.title.trim()) {
+			setTaskActionError('Task title is required.')
+			return
+		}
+
+		if (!taskForm.projectId) {
+			setTaskActionError('Please select a project.')
+			return
+		}
+
+		if (taskForm.teamId) {
+			const validTeam = taskProjectTeams.some((team) => team.id === taskForm.teamId)
+			if (!validTeam) {
+				setTaskActionError('Selected team is not assigned to the selected project.')
+				return
+			}
+		}
+
+		setTaskActionError('')
+		setIsSavingTask(true)
+
+		try {
+			if (editingTaskId) {
+				await updateTask(editingTaskId, {
+					title: taskForm.title.trim(),
+					description: taskForm.description.trim(),
+					status: taskForm.status,
+					priority: taskForm.priority,
+					dueDate: taskForm.dueDate || null,
+					projectId: taskForm.projectId,
+					teamId: taskForm.teamId || null,
+				})
+				setActionAlert({ type: 'success', message: 'Task updated successfully.' })
+			} else {
+				await createTask({
+					title: taskForm.title.trim(),
+					description: taskForm.description.trim(),
+					status: taskForm.status,
+					priority: taskForm.priority,
+					dueDate: taskForm.dueDate || null,
+					projectId: taskForm.projectId,
+					teamId: taskForm.teamId || null,
+				})
+				setActionAlert({ type: 'success', message: 'Task created successfully.' })
+			}
+
+			await Promise.all([fetchTasksData(taskForm.projectId), fetchProjectsData()])
+			closeModal()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save task. Please try again.'
+			setTaskActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsSavingTask(false)
+		}
+	}
+
+	const handleDeleteTask = async (task: ApiTask) => {
+		try {
+			await deleteTask(task._id)
+			setTasksData((prev) => prev.filter((item) => item._id !== task._id))
+			setActionAlert({ type: 'success', message: 'Task deleted successfully.' })
+			await fetchProjectsData()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to delete task. Please try again.'
+			setActionAlert({ type: 'error', message })
+		}
+	}
+
+	const handleToggleTaskStatus = async (task: ApiTask) => {
+		const nextStatus: ApiTaskStatus = task.status === 'done' ? 'todo' : 'done'
+		try {
+			const updated = await updateTaskStatus(task._id, nextStatus)
+			setTasksData((prev) => prev.map((item) => (item._id === task._id ? updated : item)))
+			await fetchProjectsData()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to update task status.'
+			setActionAlert({ type: 'error', message })
+		}
 	}
 
 	const handleSignOut = async () => {
@@ -347,6 +755,59 @@ const Dashboard_CEO = () => {
 		}
 	}
 
+	const promptRemoveMemberFromCompany = (memberId: string, memberName: string) => {
+		setPendingCompanyRemoval({ id: memberId, name: memberName })
+	}
+
+	const closeRemoveMemberAlert = () => {
+		if (removingCompanyMemberId) {
+			return
+		}
+		setPendingCompanyRemoval(null)
+	}
+
+	const closeTeamDisbandAlert = () => {
+		if (forceDisbandingTeamId) {
+			return
+		}
+		setPendingTeamDisband(null)
+	}
+
+	const handleRemoveMemberFromCompany = async () => {
+		if (!pendingCompanyRemoval) {
+			return
+		}
+
+		const memberId = pendingCompanyRemoval.id
+
+		setRemovingCompanyMemberId(memberId)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			const response = await authorizedFetch(`/api/members/${memberId}`, {
+				method: 'DELETE',
+			})
+
+			const result = await response.json().catch(() => null)
+
+			if (!response.ok) {
+				throw new Error(result?.message || `Failed to remove member: ${response.status}`)
+			}
+
+			await fetchTeamsAndMembers()
+			setPendingCompanyRemoval(null)
+			setActionAlert({ type: 'success', message: 'Member removed from company successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to remove member from company. Please try again.'
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setRemovingCompanyMemberId(null)
+		}
+	}
+
 	const handleDisbandTeam = async (teamId: string) => {
 		try {
 			if (!companyId) {
@@ -357,7 +818,25 @@ const Dashboard_CEO = () => {
 				method: 'DELETE',
 			})
 
-			const result = await response.json().catch(() => null)
+			const result = (await response.json().catch(() => null)) as
+				| {
+						message?: string
+						code?: string
+						projects?: string[]
+				  }
+				| null
+
+			if (response.status === 409 && result?.code === 'TEAM_ASSIGNED_TO_PROJECTS') {
+				const teamName = teamsData.find((team) => team.id === teamId)?.name ?? 'This team'
+				setPendingTeamDisband({
+					teamId,
+					teamName,
+					message:
+						result.message || 'This team is assigned to one or more projects. Disbanding will remove it from those projects.',
+					projects: result.projects ?? [],
+				})
+				return
+			}
 
 			if (!response.ok) {
 				throw new Error(result?.message || `Failed to disband team: ${response.status}`)
@@ -365,10 +844,46 @@ const Dashboard_CEO = () => {
 
 			setTeamOptionsOpenFor(null)
 			await fetchTeamsAndMembers()
+			await fetchProjectsData()
 			setActionAlert({ type: 'success', message: 'Team disbanded successfully.' })
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Failed to disband team. Please try again.'
 			setActionAlert({ type: 'error', message })
+		}
+	}
+
+	const handleForceDisbandTeam = async () => {
+		if (!pendingTeamDisband) {
+			return
+		}
+
+		setForceDisbandingTeamId(pendingTeamDisband.teamId)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			const forceResponse = await authorizedFetch(`/api/teams/${pendingTeamDisband.teamId}?force=true`, {
+				method: 'DELETE',
+			})
+
+			const forceResult = await forceResponse.json().catch(() => null)
+
+			if (!forceResponse.ok) {
+				throw new Error(forceResult?.message || `Failed to disband team: ${forceResponse.status}`)
+			}
+
+			setPendingTeamDisband(null)
+			setTeamOptionsOpenFor(null)
+			await fetchTeamsAndMembers()
+			await fetchProjectsData()
+			setActionAlert({ type: 'success', message: 'Team disbanded and removed from assigned projects.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to disband team. Please try again.'
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setForceDisbandingTeamId(null)
 		}
 	}
 
@@ -505,125 +1020,186 @@ const Dashboard_CEO = () => {
 		}
 	}
 
-	const renderTask = (task: TaskItem, showAssignee: boolean) => {
-		const done = taskState[task.id]
-		return (
-			<div className="ceo-task-item" key={task.id}>
-				<button
-					aria-label={`Toggle task ${task.name}`}
-					className={`ceo-task-cb ${done ? 'done' : ''}`}
-					onClick={() => toggleTask(task.id)}
-					type="button"
-				/>
-				<span className={`ceo-task-name ${done ? 'done-text' : ''}`}>{task.name}</span>
-				{showAssignee && <span className="ceo-task-assignee">{task.assignee}</span>}
-				<span className={`ceo-chip ${chipClassMap[task.chipTone]}`}>{task.chip}</span>
-			</div>
-		)
+	const toggleProjectTeamSelection = (teamId: string) => {
+		setProjectTeamSelection((prev) => (prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]))
+	}
+
+	const handleCreateProject = async () => {
+		if (!createProjectForm.projectName.trim()) {
+			setProjectActionError('Project name is required.')
+			return
+		}
+
+		setProjectActionError('')
+		setIsCreatingProject(true)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			await createProject({
+				projectName: createProjectForm.projectName.trim(),
+				projectDescription: createProjectForm.projectDescription.trim(),
+				projectStatus: createProjectForm.projectStatus,
+				dueDate: createProjectForm.dueDate ? createProjectForm.dueDate : null,
+				progress: createProjectForm.progress,
+				completedTasks: createProjectForm.completedTasks,
+				totalTasks: createProjectForm.totalTasks,
+				assignedTeams: createProjectForm.assignedTeams,
+			})
+
+			await fetchProjectsData()
+			setActivePanel('projects')
+			closeModal()
+			setActionAlert({ type: 'success', message: 'Project created successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to create project. Please try again.'
+			setProjectActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsCreatingProject(false)
+		}
+	}
+
+	const handleDiscardProject = async () => {
+		if (!selectedProjectIdForModal) {
+			setProjectActionError('Please select a project to discard.')
+			return
+		}
+
+		setProjectActionError('')
+		setIsDeletingProject(true)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			await deleteProject(selectedProjectIdForModal)
+			await fetchProjectsData()
+			closeModal()
+			setActionAlert({ type: 'success', message: 'Project discarded successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to discard project. Please try again.'
+			setProjectActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsDeletingProject(false)
+		}
+	}
+
+	const handleAssignTeamsToProject = async () => {
+		if (!selectedProjectIdForModal) {
+			setProjectActionError('Please select a project first.')
+			return
+		}
+
+		if (projectTeamSelection.length === 0) {
+			setProjectActionError('Select at least one team to assign.')
+			return
+		}
+
+		const duplicateTeamIds = projectTeamSelection.filter((teamId) => selectedProjectAssignedTeamIds.includes(teamId))
+		if (duplicateTeamIds.length > 0) {
+			const duplicateTeamNames = teamsData
+				.filter((team) => duplicateTeamIds.includes(team.id))
+				.map((team) => team.name)
+				.join(', ')
+
+			setProjectActionError(
+				duplicateTeamNames
+					? `Team already assigned: ${duplicateTeamNames}`
+					: 'One or more selected teams are already assigned to this project.'
+			)
+			return
+		}
+
+		setProjectActionError('')
+		setIsAssigningProjectTeams(true)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			await assignTeams(selectedProjectIdForModal, projectTeamSelection)
+			await fetchProjectsData()
+			closeModal()
+			setActionAlert({ type: 'success', message: 'Teams assigned to project successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to assign teams. Please try again.'
+			setProjectActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsAssigningProjectTeams(false)
+		}
+	}
+
+	const handleRevokeTeamsFromProject = async () => {
+		if (!selectedProjectIdForModal) {
+			setProjectActionError('Please select a project first.')
+			return
+		}
+
+		if (projectTeamSelection.length === 0) {
+			setProjectActionError('Select at least one team to revoke.')
+			return
+		}
+
+		setProjectActionError('')
+		setIsRevokingProjectTeams(true)
+
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user. Please log in again.')
+			}
+
+			await revokeTeams(selectedProjectIdForModal, projectTeamSelection)
+			await fetchProjectsData()
+			closeModal()
+			setActionAlert({ type: 'success', message: 'Teams revoked from project successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to revoke teams. Please try again.'
+			setProjectActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsRevokingProjectTeams(false)
+		}
+	}
+
+	const goToProjectDetails = (projectId: string) => {
+		navigate(`/ceo/projects/${projectId}`)
+	}
+
+	const handleProfileSignOut = () => {
+		setProfileMenuOpen(false)
+		void handleSignOut()
 	}
 
 	return (
 		<div className="ceo-dashboard-root">
-			<aside className="ceo-sidebar">
-				<button className="ceo-logo-area" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
-					<div className="ceo-logo">
-						Task<span>IQ</span>
-					</div>
-					<div className="ceo-logo-line" />
-					<div className="ceo-org-label">
-						{displayCompanyName} | {displayDesignation}
-					</div>
-				</button>
-
-				{profileMenuOpen && (
-					<div className="ceo-profile-menu">
-						<button onClick={() => openModalById('editProfile')} type="button">
-							Edit Profile
-						</button>
-						<button onClick={() => switchPanel('settings')} type="button">
-							Preferences
-						</button>
-						<button onClick={() => {
-							setProfileMenuOpen(false)
-							void handleSignOut()
-						}} type="button" className="danger">
-							Sign Out
-						</button>
-					</div>
-				)}
-
-				<div className="ceo-nav-scroll">
-					<section className="ceo-nav-section">
-						<h4>Overview</h4>
-						{ceoDashboardData.nav.overview.map((item) => (
-							<button
-								className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
-								key={item.id}
-								onClick={() => switchPanel(item.id)}
-								type="button"
-							>
-								<span>{item.short}</span>
-								{item.label}
-							</button>
-						))}
-					</section>
-
-					<section className="ceo-nav-section">
-						<h4>Workspace</h4>
-						{ceoDashboardData.nav.workspace.map((item) => (
-							<button
-								className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
-								key={item.id}
-								onClick={() => switchPanel(item.id)}
-								type="button"
-							>
-								<span>{item.short}</span>
-								{item.label}
-								{item.badge && <strong>{item.badge}</strong>}
-							</button>
-						))}
-					</section>
-
-					<section className="ceo-nav-section">
-						<h4>System</h4>
-						{ceoDashboardData.nav.system.map((item) => (
-							<button
-								className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
-								key={item.id}
-								onClick={() => switchPanel(item.id)}
-								type="button"
-							>
-								<span>{item.short}</span>
-								{item.label}
-							</button>
-						))}
-					</section>
-				</div>
-
-				<button className="ceo-user-card" onClick={() => setProfileMenuOpen((prev) => !prev)} type="button">
-					<div className="ceo-avatar">{displayUserInitials}</div>
-					<div>
-						<div className="ceo-user-name">{displayUserName}</div>
-						<div className="ceo-user-role">{displayDesignation} | {displayDesignation === 'CEO' ? 'Admin' : 'Employee'}</div>
-					</div>
-				</button>
-			</aside>
+			<Sidebar
+				nav={dynamicNav}
+				activePanel={activePanel}
+				profileMenuOpen={profileMenuOpen}
+				displayCompanyName={displayCompanyName}
+				displayDesignation={displayDesignation}
+				displayUserInitials={displayUserInitials}
+				displayUserName={displayUserName}
+				onToggleProfileMenu={() => setProfileMenuOpen((prev) => !prev)}
+				onOpenEditProfile={() => openModalById('editProfile')}
+				onOpenPreferences={() => switchPanel('settings')}
+				onSignOut={handleProfileSignOut}
+				onSwitchPanel={switchPanel}
+			/>
 
 			<main className="ceo-main">
-				<header className="ceo-topbar">
-					<h1>{pageTitles[activePanel]}</h1>
-					<div className="ceo-topbar-right">
-						<button className="ceo-btn-outline" onClick={() => openModalById('invite')} type="button">
-							Invite Member
-						</button>
-						<button className="ceo-btn-primary" onClick={() => openModalById('createProject')} type="button">
-							New Project
-						</button>
-						<button className="ceo-notif" type="button" aria-label="Notifications">
-							🔔
-						</button>
-					</div>
-				</header>
+				<Topbar
+					activePanel={activePanel}
+					onInviteMember={() => openModalById('invite')}
+					onCreateProject={() => openModalById('createProject')}
+				/>
 
 				{actionAlert && (
 					<div className={`ceo-action-alert ${actionAlert.type === 'success' ? 'success' : 'error'}`} role="status">
@@ -635,204 +1211,49 @@ const Dashboard_CEO = () => {
 				)}
 
 				<section className="ceo-content">
-					<div className={`ceo-panel ${activePanel === 'dashboard' ? 'active' : ''}`}>
-						<div className="ceo-stats-row">{ceoDashboardData.stats.map((stat) => <DashboardStat key={stat.id} stat={stat} />)}</div>
+					<DashboardPanel
+						isActive={activePanel === 'dashboard'}
+						stats={dashboardStats}
+						todayTasks={dashboardTodayTasks}
+						onlineMembers={onlineMembers}
+						projectHealth={projectHealthItems}
+						activity={ceoDashboardData.activity}
+						taskState={dashboardTaskState}
+						onToggleTask={toggleTask}
+						onSwitchPanel={switchPanel}
+					/>
 
-						<div className="ceo-grid-three">
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Today&apos;s Tasks</h3>
-									<button className="ceo-link-btn" onClick={() => switchPanel('tasks')} type="button">
-										View all
-									</button>
-								</div>
-								{ceoDashboardData.todayTasks.map((task) => renderTask(task, false))}
-							</article>
+					<TeamsPanel
+						isActive={activePanel === 'teams'}
+						teamsData={teamsData}
+						teamOptionsOpenFor={teamOptionsOpenFor}
+						onOpenModalById={openModalById}
+						onToggleTeamOptions={(teamId) => setTeamOptionsOpenFor((prev) => (prev === teamId ? null : teamId))}
+						onDisbandTeam={(teamId) => void handleDisbandTeam(teamId)}
+					/>
 
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Team Online</h3>
-									<button className="ceo-link-btn" onClick={() => switchPanel('members')} type="button">
-										All
-									</button>
-								</div>
-								{onlineMembers.map((member) => (
-									<div className="ceo-member-row" key={member.id}>
-										<div className={`ceo-member-avatar tone-${member.tone}`}>{member.initials}</div>
-										<div>
-											<div className="ceo-member-name">{member.name}</div>
-											<div className="ceo-member-role">{member.role}</div>
-										</div>
-										<div className={`ceo-online-dot ${member.online ? 'online' : 'offline'}`} />
-									</div>
-								))}
-							</article>
-						</div>
+					<ProjectsPanel
+						isActive={activePanel === 'projects'}
+						projectsData={projectsData}
+						onOpenCreateProject={() => openModalById('createProject')}
+						onOpenDiscardProject={() => openModalById('discardProject')}
+						onOpenAssignTeam={(projectId) => openModalById('assignTeam', projectId)}
+						onOpenRevokeTeam={(projectId) => openModalById('revokeTeam', projectId)}
+						onOpenProjectDetails={goToProjectDetails}
+					/>
 
-						<div className="ceo-grid-two">
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Project Health</h3>
-								</div>
-								{ceoDashboardData.projectHealth.map((item) => (
-									<ProgressRow item={item} key={item.id} />
-								))}
-							</article>
-
-							<article className="ceo-card">
-								<div className="ceo-card-head">
-									<h3>Recent Activity</h3>
-								</div>
-								{ceoDashboardData.activity.map((item) => (
-									<div className="ceo-activity-item" key={item.id}>
-										<span className={`ceo-activity-dot ${toneClassMap[item.tone]}`} />
-										<div>
-											<p>{item.label}</p>
-											<small>{item.time}</small>
-										</div>
-									</div>
-								))}
-							</article>
-						</div>
-					</div>
-
-					<div className={`ceo-panel ${activePanel === 'teams' ? 'active' : ''}`}>
-						<div className="ceo-section-head">
-							<h2>Teams</h2>
-							<div className="ceo-actions-row">
-								<button className="ceo-btn-outline" onClick={() => openModalById('disbandTeam')} type="button">
-									Disband Team
-								</button>
-								<button className="ceo-btn-primary" onClick={() => openModalById('createTeam')} type="button">
-									Create Team
-								</button>
-							</div>
-						</div>
-
-						<article className="ceo-list-card">
-							{teamsData.map((team) => (
-								<div className="ceo-list-row" key={team.id}>
-									<div className="ceo-list-main">
-										<div className="ceo-list-title-wrap">
-											<h3>{team.name}</h3>
-											<span className="ceo-team-tag">{team.tag}</span>
-										</div>
-										<p>{team.description}</p>
-									</div>
-									<div className="ceo-list-avatars">
-										{team.members.map((member) => (
-											<span className={`ceo-mini-avatar tone-${member.tone}`} key={`${team.id}-${member.initials}`}>
-												{member.initials}
-											</span>
-										))}
-										<small>{team.totalMembers} members</small>
-									</div>
-									<div className="ceo-list-actions">
-										<button className="ceo-btn-sm" onClick={() => openModalById('addMember', team.id)} type="button">
-											Add Member
-										</button>
-										<button className="ceo-btn-danger" onClick={() => openModalById('revokeMember', team.id)} type="button">
-											Revoke Member
-										</button>
-										<div className="ceo-team-options-wrap">
-											<button
-												className="ceo-btn-outline"
-												onClick={() => setTeamOptionsOpenFor((prev) => (prev === team.id ? null : team.id))}
-												type="button"
-											>
-												☰
-											</button>
-											{teamOptionsOpenFor === team.id && (
-												<div className="ceo-team-options-menu">
-													<button className="ceo-btn-danger" onClick={() => void handleDisbandTeam(team.id)} type="button">
-														Disband Team
-													</button>
-												</div>
-											)}
-										</div>
-									</div>
-								</div>
-							))}
-							<div className="ceo-list-row ceo-list-row-create">
-								<div className="ceo-list-main">
-									<h3>Create New Team</h3>
-									<p>Group members into focused teams with clear goals and role boundaries.</p>
-								</div>
-								<div className="ceo-list-actions">
-									<button className="ceo-btn-primary" onClick={() => openModalById('createTeam')} type="button">
-										Create Team
-									</button>
-								</div>
-							</div>
-						</article>
-					</div>
-
-					<div className={`ceo-panel ${activePanel === 'projects' ? 'active' : ''}`}>
-						<div className="ceo-section-head">
-							<h2>Projects</h2>
-							<div className="ceo-actions-row">
-								<button className="ceo-btn-outline" onClick={() => openModalById('discardProject')} type="button">
-									Discard Project
-								</button>
-								<button className="ceo-btn-primary" onClick={() => openModalById('createProject')} type="button">
-									Create Project
-								</button>
-							</div>
-						</div>
-
-						<article className="ceo-list-card">
-							{ceoDashboardData.projects.map((project) => (
-								<div className="ceo-list-row" key={project.id}>
-									<div className="ceo-list-main ceo-list-main-project">
-										<div className="ceo-list-title-wrap">
-											<h3>{project.name}</h3>
-											<span className={`ceo-status ${statusClassMap[project.status]}`}>{project.status}</span>
-										</div>
-										<p>{project.description}</p>
-										<div className="ceo-project-meta">
-											<span>Due {project.due}</span>
-											<span>
-												{project.completedTasks}/{project.totalTasks} tasks
-											</span>
-											<span>{project.team}</span>
-										</div>
-										<div className="ceo-progress-bar ceo-list-progress">
-											<div className="ceo-progress-fill ceo-fill-cyan" style={{ width: `${project.progress}%` }} />
-										</div>
-									</div>
-									<div className="ceo-list-actions">
-										<button className="ceo-btn-sm" onClick={() => openModalById('assignTeam')} type="button">
-											Assign Team
-										</button>
-										<button className="ceo-btn-danger" onClick={() => openModalById('revokeTeam')} type="button">
-											Revoke Team
-										</button>
-									</div>
-								</div>
-							))}
-							<div className="ceo-list-row ceo-list-row-create">
-								<div className="ceo-list-main">
-									<h3>New Project</h3>
-									<p>Create a project, assign ownership, and start tracking progress immediately.</p>
-								</div>
-								<div className="ceo-list-actions">
-									<button className="ceo-btn-primary" onClick={() => openModalById('createProject')} type="button">
-										Create Project
-									</button>
-								</div>
-							</div>
-						</article>
-					</div>
-
-					<div className={`ceo-panel ${activePanel === 'tasks' ? 'active' : ''}`}>
-						<div className="ceo-section-head">
-							<h2>All Tasks</h2>
-							<button className="ceo-btn-primary" onClick={() => openModalById('createTask')} type="button">
-								New Task
-							</button>
-						</div>
-						<article className="ceo-card">{ceoDashboardData.allTasks.map((task) => renderTask(task, true))}</article>
-					</div>
+					<TasksPanel
+						isActive={activePanel === 'tasks'}
+						tasks={tasksData}
+						filters={taskFilters}
+						projects={projectsData.map((project) => ({ id: project.id, name: project.name }))}
+						teams={teamsData.map((team) => ({ id: team.id, name: team.name }))}
+						onChangeFilters={setTaskFilters}
+						onCreateTask={() => openModalById('createTask')}
+						onToggleStatus={(task) => void handleToggleTaskStatus(task)}
+						onDeleteTask={(task) => void handleDeleteTask(task)}
+						onEditTask={handleEditTask}
+					/>
 
 					<div className={`ceo-panel ${activePanel === 'members' ? 'active' : ''}`}>
 						<div className="ceo-section-head">
@@ -847,6 +1268,9 @@ const Dashboard_CEO = () => {
 							) : (
 								membersData.map((member) => {
 									const memberTeam = member.team && member.team !== 'Unassigned' ? teamsData.find((team) => team.name === member.team) : null
+									const isCurrentUser =
+										(storedUser?.id && (member as { userId?: string }).userId === storedUser.id) || member.name.includes('(You)')
+									const canRemoveMemberFromCompany = isCeoUser && !memberTeam && !isCurrentUser
 
 									return (
 									<div className="ceo-team-member-row" key={member.id}>
@@ -859,19 +1283,21 @@ const Dashboard_CEO = () => {
 											</div>
 										</div>
 										<div className="ceo-list-actions">
-											{member.name.includes('(You)') ? (
+											{isCurrentUser ? (
 												<span className="ceo-chip ceo-chip-dev">Admin</span>
-											) : !memberTeam ? (
-												<span className="ceo-chip ceo-chip-dev">Unassigned</span>
-											) : (
+											) : canRemoveMemberFromCompany ? (
 												<button
 													className="ceo-btn-danger"
-													onClick={() => void handleRevokeMember(member.id, memberTeam.id)}
+													onClick={() => promptRemoveMemberFromCompany(member.id, member.name)}
 													type="button"
-													disabled={revokingMemberId === member.id}
+													disabled={removingCompanyMemberId === member.id}
 												>
-													{revokingMemberId === member.id ? 'Revoking...' : 'Revoke'}
+													{removingCompanyMemberId === member.id ? 'Removing...' : 'Remove Member'}
 												</button>
+											) : !memberTeam ? (
+												<span className="ceo-chip ceo-chip-dev">CEO only</span>
+											) : (
+												<span className="ceo-chip ceo-chip-ops">Assigned to team</span>
 											)}
 										</div>
 									</div>
@@ -886,7 +1312,7 @@ const Dashboard_CEO = () => {
 							<h2>Analytics</h2>
 						</div>
 						<div className="ceo-stats-row">
-							{ceoDashboardData.analyticsStats.map((stat) => (
+								{analyticsStats.map((stat) => (
 								<DashboardStat key={stat.id} stat={stat} />
 							))}
 						</div>
@@ -974,7 +1400,7 @@ const Dashboard_CEO = () => {
 						}
 					}}
 				>
-					<div className="ceo-modal" role="dialog" aria-modal="true" aria-label={modalTitles[openModal]}>
+					<div className={`ceo-modal ${isProjectTeamModal ? 'ptm-modal' : ''}`} role="dialog" aria-modal="true" aria-label={modalTitles[openModal]}>
 						<div className="ceo-modal-head">
 							<h3>{modalTitles[openModal]}</h3>
 							<button onClick={closeModal} type="button">
@@ -1155,6 +1581,240 @@ const Dashboard_CEO = () => {
 										<div className="ceo-team-empty">Select a team row to manage member revokes.</div>
 									)}
 								</>
+							) : openModal === 'createProject' ? (
+								<>
+									{projectActionError && <p className="form-message form-error">{projectActionError}</p>}
+									<label>
+										Project Name
+										<input
+											placeholder="e.g. Customer Success Portal"
+											type="text"
+											value={createProjectForm.projectName}
+											onChange={(event) =>
+												setCreateProjectForm((prev) => ({
+													...prev,
+													projectName: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<label>
+										Description
+										<input
+											placeholder="What should this project deliver?"
+											type="text"
+											value={createProjectForm.projectDescription}
+											onChange={(event) =>
+												setCreateProjectForm((prev) => ({
+													...prev,
+													projectDescription: event.target.value,
+												}))
+											}
+										/>
+									</label>
+									<div className="ceo-form-grid">
+										<label>
+											Status
+											<select
+												value={createProjectForm.projectStatus}
+												onChange={(event) =>
+													setCreateProjectForm((prev) => ({
+														...prev,
+														projectStatus: event.target.value as ApiProjectStatus,
+													}))
+												}
+											>
+												<option value="planning">Planning</option>
+												<option value="active">Active</option>
+												<option value="review">Review</option>
+												<option value="completed">Completed</option>
+												<option value="blocked">Blocked</option>
+											</select>
+										</label>
+										<label>
+											Due Date
+											<input
+												type="date"
+												value={createProjectForm.dueDate}
+												onChange={(event) =>
+													setCreateProjectForm((prev) => ({
+														...prev,
+														dueDate: event.target.value,
+													}))
+												}
+											/>
+										</label>
+									</div>
+									<div className="ceo-form-grid">
+										<label>
+											Progress %
+											<input
+												type="number"
+												min={0}
+												max={100}
+												value={createProjectForm.progress}
+												onChange={(event) =>
+													setCreateProjectForm((prev) => ({
+														...prev,
+														progress: Number(event.target.value) || 0,
+													}))
+												}
+											/>
+										</label>
+										<label>
+											Completed / Total Tasks
+											<div className="ceo-form-grid">
+												<input
+													type="number"
+													min={0}
+													value={createProjectForm.completedTasks}
+													onChange={(event) =>
+														setCreateProjectForm((prev) => ({
+															...prev,
+															completedTasks: Number(event.target.value) || 0,
+														}))
+													}
+												/>
+												<input
+													type="number"
+													min={0}
+													value={createProjectForm.totalTasks}
+													onChange={(event) =>
+														setCreateProjectForm((prev) => ({
+															...prev,
+															totalTasks: Number(event.target.value) || 0,
+														}))
+													}
+												/>
+											</div>
+										</label>
+									</div>
+									<label>
+										Assign Teams
+										<select
+											multiple
+											value={createProjectForm.assignedTeams}
+											onChange={(event) =>
+												setCreateProjectForm((prev) => ({
+													...prev,
+													assignedTeams: Array.from(event.target.selectedOptions).map((option) => option.value),
+												}))
+											}
+										>
+											{teamsData.map((team) => (
+												<option key={team.id} value={team.id}>
+													{team.name}
+												</option>
+											))}
+										</select>
+									</label>
+								</>
+							) : openModal === 'discardProject' ? (
+								<>
+									{projectActionError && <p className="form-message form-error">{projectActionError}</p>}
+									<label>
+										Project
+										<select
+											value={selectedProjectIdForModal ?? ''}
+											onChange={(event) => setSelectedProjectIdForModal(event.target.value || null)}
+										>
+											<option value="" disabled>
+												Select a project
+											</option>
+											{projectsData.map((project) => (
+												<option key={project.id} value={project.id}>
+													{project.name}
+												</option>
+											))}
+										</select>
+									</label>
+									<p className="ceo-confirm-note">Discarding a project is permanent and cannot be undone.</p>
+								</>
+							) : openModal === 'assignTeam' || openModal === 'revokeTeam' ? (
+								<div className="ptm-shell">
+									{projectActionError && <p className="form-message form-error">{projectActionError}</p>}
+									<div className="ptm-top-row">
+										<label className="ptm-field">
+											<span>Project</span>
+											<select
+												value={selectedProjectIdForModal ?? ''}
+												onChange={(event) => {
+													const nextProjectId = event.target.value || null
+													setSelectedProjectIdForModal(nextProjectId)
+													if (!nextProjectId) {
+														setProjectTeamSelection([])
+														return
+													}
+
+													const nextProject = projectsData.find((project) => project.id === nextProjectId)
+													const nextAssigned = teamsData.filter((team) => (nextProject?.teams ?? []).includes(team.name)).map((team) => team.id)
+													setProjectTeamSelection(openModal === 'assignTeam' ? [] : nextAssigned)
+												}}
+											>
+												<option value="" disabled>
+													Select a project
+												</option>
+												{projectsData.map((project) => (
+													<option key={project.id} value={project.id}>
+														{project.name}
+													</option>
+												))}
+											</select>
+										</label>
+										<div className="ptm-summary">
+											<strong>{openModal === 'assignTeam' ? 'Assign Teams' : 'Revoke Teams'}</strong>
+											<small>{projectTeamSelection.length} selected</small>
+										</div>
+									</div>
+
+									{selectedProjectForModal && (
+										<p className="ptm-current-teams">
+											Current teams: {selectedProjectForModal.teams.length > 0 ? selectedProjectForModal.teams.join(', ') : 'None assigned'}
+										</p>
+									)}
+
+									{teamsData.length === 0 ? (
+										<div className="ceo-team-empty">Create teams first to manage project assignment.</div>
+									) : (
+										<div className="ptm-team-grid">
+											{teamsData
+												.filter((team) => (openModal === 'assignTeam' ? true : selectedProjectAssignedTeamIds.includes(team.id)))
+												.map((team) => {
+													const isSelected = projectTeamSelection.includes(team.id)
+													const isAssigned = selectedProjectAssignedTeamIds.includes(team.id)
+
+													return (
+														<label key={team.id} className={`ptm-team-card ${isSelected ? 'selected' : ''}`}>
+															<input
+																type="checkbox"
+																checked={isSelected}
+																onChange={() => toggleProjectTeamSelection(team.id)}
+															/>
+															<div className="ptm-team-card-text">
+																<span>{team.name}</span>
+																<small>{isAssigned ? 'Already assigned' : 'Available'}</small>
+															</div>
+														</label>
+													)
+												})}
+										</div>
+									)}
+								</div>
+							) : openModal === 'createTask' ? (
+								<TaskModal
+									value={taskForm}
+									onChange={(next) => {
+										if (next.projectId !== taskForm.projectId) {
+												setTaskForm({ ...next, teamId: '' })
+											return
+										}
+
+										setTaskForm(next)
+									}}
+									projects={projectsData.map((project) => ({ id: project.id, name: project.name }))}
+									teams={taskProjectTeams.map((team) => ({ id: team.id, name: team.name }))}
+									errorMessage={taskActionError}
+								/>
 							) : (
 								<>
 									<label>
@@ -1176,7 +1836,7 @@ const Dashboard_CEO = () => {
 								</>
 							)}
 						</div>
-						<div className="ceo-modal-actions">
+						<div className={`ceo-modal-actions ${isProjectTeamModal ? 'ptm-actions' : ''}`}>
 							<button className="ceo-btn-outline" onClick={closeModal} type="button">
 								Cancel
 							</button>
@@ -1190,10 +1850,29 @@ const Dashboard_CEO = () => {
 												? () => void handleSendInvite()
 												: openModal === 'addMember'
 													? () => void handleAddMemberToTeam()
-													: closeModal
+													: openModal === 'createProject'
+														? () => void handleCreateProject()
+																: openModal === 'createTask'
+																	? () => void handleSaveTask()
+														: openModal === 'discardProject'
+															? () => void handleDiscardProject()
+															: openModal === 'assignTeam'
+																? () => void handleAssignTeamsToProject()
+																: openModal === 'revokeTeam'
+																	? () => void handleRevokeTeamsFromProject()
+																	: closeModal
 									}
 									type="button"
-									disabled={(openModal === 'createTeam' && isCreatingTeam) || (openModal === 'invite' && isSendingInvite) || (openModal === 'addMember' && isAddingMember)}
+									disabled={
+										(openModal === 'createTeam' && isCreatingTeam) ||
+										(openModal === 'invite' && isSendingInvite) ||
+										(openModal === 'addMember' && isAddingMember) ||
+										(openModal === 'createProject' && isCreatingProject) ||
+										(openModal === 'createTask' && isSavingTask) ||
+										(openModal === 'discardProject' && isDeletingProject) ||
+										(openModal === 'assignTeam' && isAssigningProjectTeams) ||
+										(openModal === 'revokeTeam' && isRevokingProjectTeams)
+									}
 								>
 									{openModal === 'createTeam'
 										? isCreatingTeam
@@ -1207,9 +1886,109 @@ const Dashboard_CEO = () => {
 												? isAddingMember
 													? 'Adding...'
 													: 'Add Member'
-												: 'Confirm'}
+												: openModal === 'createProject'
+													? isCreatingProject
+														? 'Creating...'
+														: 'Create Project'
+													: openModal === 'createTask'
+														? isSavingTask
+															? 'Saving...'
+															: editingTaskId
+																? 'Update Task'
+																: 'Create Task'
+													: openModal === 'discardProject'
+														? isDeletingProject
+															? 'Discarding...'
+															: 'Discard Project'
+														: openModal === 'assignTeam'
+															? isAssigningProjectTeams
+																? 'Assigning...'
+																: 'Assign Teams'
+															: openModal === 'revokeTeam'
+																? isRevokingProjectTeams
+																	? 'Revoking...'
+																	: 'Revoke Teams'
+																: 'Confirm'}
 								</button>
 							)}
+						</div>
+					</div>
+				</div>
+			)}
+
+			{pendingCompanyRemoval && (
+				<div
+					className="ceo-overlay"
+					onClick={(event) => {
+						if (event.currentTarget === event.target) {
+							closeRemoveMemberAlert()
+						}
+					}}
+				>
+					<div className="ceo-modal ceo-confirm-alert" role="alertdialog" aria-modal="true" aria-label="Confirm member removal">
+						<div className="ceo-modal-head">
+							<h3>Remove Member</h3>
+							<button onClick={closeRemoveMemberAlert} type="button" aria-label="Close confirmation">
+								X
+							</button>
+						</div>
+						<div className="ceo-modal-body">
+							<p>
+								Are you sure you want to remove <strong>{pendingCompanyRemoval.name}</strong> from the company?
+							</p>
+							<p className="ceo-confirm-note">This action cannot be undone.</p>
+						</div>
+						<div className="ceo-modal-actions">
+							<button className="ceo-btn-outline" onClick={closeRemoveMemberAlert} type="button" disabled={Boolean(removingCompanyMemberId)}>
+								Cancel
+							</button>
+							<button className="ceo-btn-danger" onClick={() => void handleRemoveMemberFromCompany()} type="button" disabled={Boolean(removingCompanyMemberId)}>
+								{removingCompanyMemberId === pendingCompanyRemoval.id ? 'Removing...' : 'Yes, Remove'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{pendingTeamDisband && (
+				<div
+					className="ceo-overlay"
+					onClick={(event) => {
+						if (event.currentTarget === event.target) {
+							closeTeamDisbandAlert()
+						}
+					}}
+				>
+					<div className="ceo-modal ceo-confirm-alert" role="alertdialog" aria-modal="true" aria-label="Confirm team disband">
+						<div className="ceo-modal-head">
+							<h3>Disband Team</h3>
+							<button onClick={closeTeamDisbandAlert} type="button" aria-label="Close confirmation">
+								X
+							</button>
+						</div>
+						<div className="ceo-modal-body">
+							<p>
+								<strong>{pendingTeamDisband.teamName}</strong> is assigned to project(s). Disbanding this team will remove it from those projects.
+							</p>
+							{pendingTeamDisband.projects.length > 0 && (
+								<div className="ceo-confirm-projects">
+									<strong>Affected projects:</strong>
+									<ul>
+										{pendingTeamDisband.projects.map((project) => (
+											<li key={project}>{project}</li>
+										))}
+									</ul>
+								</div>
+							)}
+							<p className="ceo-confirm-note">This action cannot be undone.</p>
+						</div>
+						<div className="ceo-modal-actions">
+							<button className="ceo-btn-outline" onClick={closeTeamDisbandAlert} type="button" disabled={Boolean(forceDisbandingTeamId)}>
+								Cancel
+							</button>
+							<button className="ceo-btn-danger" onClick={() => void handleForceDisbandTeam()} type="button" disabled={Boolean(forceDisbandingTeamId)}>
+								{forceDisbandingTeamId === pendingTeamDisband.teamId ? 'Disbanding...' : 'Yes, Disband Team'}
+							</button>
 						</div>
 					</div>
 				</div>
