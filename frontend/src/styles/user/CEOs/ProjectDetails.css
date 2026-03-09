@@ -195,6 +195,28 @@
 	accent-color: var(--pd-primary);
 }
 
+.pd-task-group {
+	margin-bottom: 12px;
+}
+
+.pd-task-group:last-child {
+	margin-bottom: 0;
+}
+
+.pd-task-group-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 0.82rem;
+	color: var(--pd-muted);
+	margin-bottom: 8px;
+}
+
+.pd-task-row {
+	justify-content: space-between;
+	gap: 8px;
+}
+
 .pd-actions-row {
 	display: flex;
 	flex-wrap: wrap;

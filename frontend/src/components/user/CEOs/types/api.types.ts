@@ -56,3 +56,53 @@ export type CreateProjectPayload = {
 }
 
 export type UpdateProjectPayload = Partial<CreateProjectPayload>
+
+export type ApiTaskStatus = 'todo' | 'in-progress' | 'done'
+
+export type ApiTaskPriority = 'low' | 'medium' | 'high'
+
+export type ApiTask = {
+	_id: string
+	title: string
+	description?: string
+	status: ApiTaskStatus
+	priority: ApiTaskPriority
+	dueDate?: string | null
+	projectId?: {
+		_id: string
+		projectName?: string
+	} | null
+	teamId?: {
+		_id: string
+		teamName?: string
+	} | null
+	assignee?: {
+		_id: string
+		memberName?: string
+		memberRole?: string
+		userId?: string
+	} | null
+	createdBy?: string
+	createdAt?: string
+	updatedAt?: string
+}
+
+export type TaskListParams = {
+	projectId?: string
+	teamId?: string
+	status?: ApiTaskStatus
+	priority?: ApiTaskPriority
+	q?: string
+}
+
+export type CreateTaskPayload = {
+	title: string
+	description?: string
+	status?: ApiTaskStatus
+	priority?: ApiTaskPriority
+	dueDate?: string | null
+	projectId: string
+	teamId?: string | null
+}
+
+export type UpdateTaskPayload = Partial<CreateTaskPayload>

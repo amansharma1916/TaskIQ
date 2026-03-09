@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
 import '../../../styles/user/CEOs/ProjectTeamModal.css'
+import '../../../styles/user/CEOs/TaskPanel.css'
 import { authorizedFetch } from '../../../services/apiClient'
 import { getAuthUser, logoutSession, type AuthUser } from '../../../services/auth'
 import { ceoDashboardData } from './CEO_dummy_data'
@@ -10,13 +11,16 @@ import Topbar from './Components/layout/Topbar'
 import DashboardPanel from './Components/panels/DashboardPanel'
 import TeamsPanel from './Components/panels/TeamsPanel'
 import ProjectsPanel from './Components/panels/ProjectsPanel'
+import TasksPanel from './Components/panels/TasksPanel'
+import TaskModal, { type TaskFormValue } from './Components/panels/TaskModal'
 import DashboardStat from './Components/shared/DashboardStat'
-import TaskRow from './Components/shared/TaskRow'
-import type { ApiMember, ApiProject, ApiProjectStatus, ApiTeam } from './types/api.types'
+import type { ApiMember, ApiProject, ApiProjectStatus, ApiTask, ApiTaskStatus, ApiTeam } from './types/api.types'
 import type { ModalId, PanelId, ProjectCard } from './types/dashboard.types'
 import { avatarTones, modalTitles } from './utils/constants'
 import { getInitials } from './utils/formatters'
 import { assignTeams, createProject, deleteProject, getProjects, revokeTeams } from '../../../services/projects'
+import { createTask, deleteTask, getTasks, updateTask, updateTaskStatus } from '../../../services/tasks'
+import type { TaskFiltersValue } from './Components/panels/TaskFilters'
 
 const formatProjectDueLabel = (dateValue?: string | null): string => {
 	if (!dateValue) {
@@ -41,6 +45,25 @@ const mapApiProjectToCard = (project: ApiProject): ProjectCard => ({
 	teams: (project.assignedTeams ?? []).map((team) => team.teamName || 'Team'),
 	progress: project.progress ?? 0,
 	status: project.projectStatus,
+})
+
+const mapDummyTaskToApiTask = (task: (typeof ceoDashboardData.allTasks)[number], projectId: string): ApiTask => ({
+	_id: task.id,
+	title: task.name,
+	description: '',
+	status: task.done ? 'done' : 'todo',
+	priority: task.chipTone === 'ops' ? 'high' : task.chipTone === 'hr' ? 'low' : 'medium',
+	dueDate: null,
+	projectId: {
+		_id: projectId,
+		projectName: 'Fallback Project',
+	},
+	assignee: task.assignee
+		? {
+				_id: 'fallback-assignee',
+				memberName: task.assignee,
+			}
+		: null,
 })
 
 const Dashboard_CEO = () => {
@@ -109,6 +132,26 @@ const Dashboard_CEO = () => {
 			map[item.id] = item.done
 		}
 		return map
+	})
+	const [tasksData, setTasksData] = useState<ApiTask[]>([])
+	const [taskActionError, setTaskActionError] = useState('')
+	const [isSavingTask, setIsSavingTask] = useState(false)
+	const [taskFilters, setTaskFilters] = useState<TaskFiltersValue>({
+		status: 'all',
+		priority: 'all',
+		projectId: 'all',
+		teamId: 'all',
+		query: '',
+	})
+	const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+	const [taskForm, setTaskForm] = useState<TaskFormValue>({
+		title: '',
+		description: '',
+		status: 'todo',
+		priority: 'medium',
+		dueDate: '',
+		projectId: '',
+		teamId: '',
 	})
 	const [notificationState, setNotificationState] = useState<Record<string, boolean>>(() => {
 		const map: Record<string, boolean> = {}
@@ -192,9 +235,32 @@ const Dashboard_CEO = () => {
 		}
 	}
 
+	const fetchTasksData = async (projectHintId?: string | null) => {
+		try {
+			if (!companyId) {
+				throw new Error('Company not found for current user')
+			}
+
+			const fetchedTasks = await getTasks()
+			setTasksData(fetchedTasks)
+		} catch (error) {
+			console.error('Using fallback CEO task data:', error)
+			const fallbackProjectId = projectHintId || projectsData[0]?.id || 'fallback-project'
+			setTasksData(ceoDashboardData.allTasks.map((task) => mapDummyTaskToApiTask(task, fallbackProjectId)))
+		}
+	}
+
 	useEffect(() => {
 		void Promise.all([fetchTeamsAndMembers(), fetchProjectsData()])
 	}, [])
+
+	useEffect(() => {
+		if (projectsData.length === 0) {
+			return
+		}
+
+		void fetchTasksData(projectsData[0]?.id)
+	}, [projectsData.length])
 
 	const onlineMembers = membersData.slice(0, 4)
 	const selectedTeamForRevoke = selectedTeamIdForRevoke
@@ -206,6 +272,10 @@ const Dashboard_CEO = () => {
 	const selectedProjectForModal = selectedProjectIdForModal
 		? projectsData.find((project) => project.id === selectedProjectIdForModal) ?? null
 		: null
+	const selectedTaskProject = taskForm.projectId ? projectsData.find((project) => project.id === taskForm.projectId) ?? null : null
+	const taskProjectTeams = selectedTaskProject
+		? teamsData.filter((team) => selectedTaskProject.teams.includes(team.name))
+		: teamsData
 	const selectedProjectAssignedTeamIds = selectedProjectForModal
 		? teamsData.filter((team) => selectedProjectForModal.teams.includes(team.name)).map((team) => team.id)
 		: []
@@ -311,6 +381,19 @@ const Dashboard_CEO = () => {
 				setProjectTeamSelection(modalId === 'assignTeam' ? [] : assignedTeamIds)
 			}
 		}
+		if (modalId === 'createTask') {
+			setTaskActionError(projectsData.length === 0 ? 'Create a project first before adding tasks.' : '')
+			setEditingTaskId(null)
+			setTaskForm({
+				title: '',
+				description: '',
+				status: 'todo',
+				priority: 'medium',
+				dueDate: '',
+				projectId: presetEntityId ?? projectsData[0]?.id ?? '',
+				teamId: '',
+			})
+		}
 		setOpenModal(modalId)
 	}
 
@@ -320,10 +403,108 @@ const Dashboard_CEO = () => {
 		setAddMemberError('')
 		setRevokeMemberError('')
 		setProjectActionError('')
+		setTaskActionError('')
 		setSelectedTeamIdForRevoke(null)
 		setSelectedProjectIdForModal(null)
 		setProjectTeamSelection([])
 		setOpenModal(null)
+	}
+
+	const handleEditTask = (task: ApiTask) => {
+		setEditingTaskId(task._id)
+		setTaskActionError('')
+		setTaskForm({
+			title: task.title,
+			description: task.description || '',
+			status: task.status,
+			priority: task.priority,
+			dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : '',
+			projectId: task.projectId?._id || projectsData[0]?.id || '',
+			teamId: task.teamId?._id || '',
+		})
+		setOpenModal('createTask')
+	}
+
+	const handleSaveTask = async () => {
+		if (!taskForm.title.trim()) {
+			setTaskActionError('Task title is required.')
+			return
+		}
+
+		if (!taskForm.projectId) {
+			setTaskActionError('Please select a project.')
+			return
+		}
+
+		if (taskForm.teamId) {
+			const validTeam = taskProjectTeams.some((team) => team.id === taskForm.teamId)
+			if (!validTeam) {
+				setTaskActionError('Selected team is not assigned to the selected project.')
+				return
+			}
+		}
+
+		setTaskActionError('')
+		setIsSavingTask(true)
+
+		try {
+			if (editingTaskId) {
+				await updateTask(editingTaskId, {
+					title: taskForm.title.trim(),
+					description: taskForm.description.trim(),
+					status: taskForm.status,
+					priority: taskForm.priority,
+					dueDate: taskForm.dueDate || null,
+					projectId: taskForm.projectId,
+					teamId: taskForm.teamId || null,
+				})
+				setActionAlert({ type: 'success', message: 'Task updated successfully.' })
+			} else {
+				await createTask({
+					title: taskForm.title.trim(),
+					description: taskForm.description.trim(),
+					status: taskForm.status,
+					priority: taskForm.priority,
+					dueDate: taskForm.dueDate || null,
+					projectId: taskForm.projectId,
+					teamId: taskForm.teamId || null,
+				})
+				setActionAlert({ type: 'success', message: 'Task created successfully.' })
+			}
+
+			await Promise.all([fetchTasksData(taskForm.projectId), fetchProjectsData()])
+			closeModal()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save task. Please try again.'
+			setTaskActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsSavingTask(false)
+		}
+	}
+
+	const handleDeleteTask = async (task: ApiTask) => {
+		try {
+			await deleteTask(task._id)
+			setTasksData((prev) => prev.filter((item) => item._id !== task._id))
+			setActionAlert({ type: 'success', message: 'Task deleted successfully.' })
+			await fetchProjectsData()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to delete task. Please try again.'
+			setActionAlert({ type: 'error', message })
+		}
+	}
+
+	const handleToggleTaskStatus = async (task: ApiTask) => {
+		const nextStatus: ApiTaskStatus = task.status === 'done' ? 'todo' : 'done'
+		try {
+			const updated = await updateTaskStatus(task._id, nextStatus)
+			setTasksData((prev) => prev.map((item) => (item._id === task._id ? updated : item)))
+			await fetchProjectsData()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to update task status.'
+			setActionAlert({ type: 'error', message })
+		}
 	}
 
 	const handleSignOut = async () => {
@@ -852,19 +1033,18 @@ const Dashboard_CEO = () => {
 						onOpenProjectDetails={goToProjectDetails}
 					/>
 
-					<div className={`ceo-panel ${activePanel === 'tasks' ? 'active' : ''}`}>
-						<div className="ceo-section-head">
-							<h2>All Tasks</h2>
-							<button className="ceo-btn-primary" onClick={() => openModalById('createTask')} type="button">
-								New Task
-							</button>
-						</div>
-						<article className="ceo-card">
-							{ceoDashboardData.allTasks.map((task) => (
-								<TaskRow key={task.id} task={task} done={taskState[task.id]} showAssignee={true} onToggleTask={toggleTask} />
-							))}
-						</article>
-					</div>
+					<TasksPanel
+						isActive={activePanel === 'tasks'}
+						tasks={tasksData}
+						filters={taskFilters}
+						projects={projectsData.map((project) => ({ id: project.id, name: project.name }))}
+						teams={teamsData.map((team) => ({ id: team.id, name: team.name }))}
+						onChangeFilters={setTaskFilters}
+						onCreateTask={() => openModalById('createTask')}
+						onToggleStatus={(task) => void handleToggleTaskStatus(task)}
+						onDeleteTask={(task) => void handleDeleteTask(task)}
+						onEditTask={handleEditTask}
+					/>
 
 					<div className={`ceo-panel ${activePanel === 'members' ? 'active' : ''}`}>
 						<div className="ceo-section-head">
@@ -1411,6 +1591,21 @@ const Dashboard_CEO = () => {
 										</div>
 									)}
 								</div>
+							) : openModal === 'createTask' ? (
+								<TaskModal
+									value={taskForm}
+									onChange={(next) => {
+										if (next.projectId !== taskForm.projectId) {
+												setTaskForm({ ...next, teamId: '' })
+											return
+										}
+
+										setTaskForm(next)
+									}}
+									projects={projectsData.map((project) => ({ id: project.id, name: project.name }))}
+									teams={taskProjectTeams.map((team) => ({ id: team.id, name: team.name }))}
+									errorMessage={taskActionError}
+								/>
 							) : (
 								<>
 									<label>
@@ -1448,6 +1643,8 @@ const Dashboard_CEO = () => {
 													? () => void handleAddMemberToTeam()
 													: openModal === 'createProject'
 														? () => void handleCreateProject()
+																: openModal === 'createTask'
+																	? () => void handleSaveTask()
 														: openModal === 'discardProject'
 															? () => void handleDiscardProject()
 															: openModal === 'assignTeam'
@@ -1462,6 +1659,7 @@ const Dashboard_CEO = () => {
 										(openModal === 'invite' && isSendingInvite) ||
 										(openModal === 'addMember' && isAddingMember) ||
 										(openModal === 'createProject' && isCreatingProject) ||
+										(openModal === 'createTask' && isSavingTask) ||
 										(openModal === 'discardProject' && isDeletingProject) ||
 										(openModal === 'assignTeam' && isAssigningProjectTeams) ||
 										(openModal === 'revokeTeam' && isRevokingProjectTeams)
@@ -1483,6 +1681,12 @@ const Dashboard_CEO = () => {
 													? isCreatingProject
 														? 'Creating...'
 														: 'Create Project'
+													: openModal === 'createTask'
+														? isSavingTask
+															? 'Saving...'
+															: editingTaskId
+																? 'Update Task'
+																: 'Create Task'
 													: openModal === 'discardProject'
 														? isDeletingProject
 															? 'Discarding...'

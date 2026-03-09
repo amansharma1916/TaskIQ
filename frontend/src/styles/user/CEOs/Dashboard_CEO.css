@@ -403,52 +403,15 @@
 	font-size: 0.78rem;
 }
 
-.ceo-task-item,
 .ceo-member-row,
 .ceo-activity-item {
 	padding: 10px 0;
 	border-bottom: 1px solid var(--border);
 }
 
-.ceo-task-item:last-child,
 .ceo-member-row:last-child,
 .ceo-activity-item:last-child {
 	border-bottom: 0;
-}
-
-.ceo-task-item {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.ceo-task-cb {
-	width: 16px;
-	height: 16px;
-	border-radius: 4px;
-	border: 1px solid var(--border);
-	background: transparent;
-	cursor: pointer;
-}
-
-.ceo-task-cb.done {
-	background: var(--cyan);
-	border-color: var(--cyan);
-}
-
-.ceo-task-name {
-	flex: 1;
-	font-size: 0.86rem;
-}
-
-.ceo-task-name.done-text {
-	color: var(--muted);
-	text-decoration: line-through;
-}
-
-.ceo-task-assignee {
-	font-size: 0.73rem;
-	color: var(--muted);
 }
 
 .ceo-chip {

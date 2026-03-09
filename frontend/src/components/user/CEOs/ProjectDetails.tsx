@@ -4,7 +4,8 @@ import '../../../styles/user/CEOs/ProjectDetails.css'
 import { authorizedFetch } from '../../../services/apiClient'
 import { getAuthUser } from '../../../services/auth'
 import { assignTeams, getProjectById, revokeTeams, updateProject } from '../../../services/projects'
-import type { ApiProject, ApiProjectStatus, ApiTeam } from './types/api.types'
+import { getTasks, updateTaskStatus } from '../../../services/tasks'
+import type { ApiProject, ApiProjectStatus, ApiTask, ApiTaskStatus, ApiTeam } from './types/api.types'
 
 const toInputDate = (value?: string | null): string => {
 	if (!value) {
@@ -31,6 +32,8 @@ const ProjectDetails = () => {
 	const [revoking, setRevoking] = useState(false)
 	const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 	const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+	const [projectTasks, setProjectTasks] = useState<ApiTask[]>([])
+	const [tasksLoading, setTasksLoading] = useState(false)
 	const [form, setForm] = useState({
 		projectName: '',
 		projectDescription: '',
@@ -42,6 +45,29 @@ const ProjectDetails = () => {
 	})
 
 	const assignedTeamIds = useMemo(() => (project?.assignedTeams ?? []).map((team) => team._id), [project])
+	const groupedTasks = useMemo(() => {
+		return projectTasks.reduce<Record<string, ApiTask[]>>((acc, task) => {
+			const key = task.teamId?.teamName || 'Unassigned'
+			if (!acc[key]) {
+				acc[key] = []
+			}
+			acc[key].push(task)
+			return acc
+		}, {})
+	}, [projectTasks])
+
+	const loadProjectTasks = async (nextProjectId: string) => {
+		setTasksLoading(true)
+		try {
+			const tasks = await getTasks({ projectId: nextProjectId })
+			setProjectTasks(tasks)
+		} catch (requestError) {
+			const nextMessage = requestError instanceof Error ? requestError.message : 'Unable to load project tasks.'
+			setMessage({ type: 'error', text: nextMessage })
+		} finally {
+			setTasksLoading(false)
+		}
+	}
 
 	const refreshProject = async () => {
 		if (!projectId) {
@@ -65,6 +91,7 @@ const ProjectDetails = () => {
 
 			setProject(projectData)
 			setTeams(teamsData)
+			void loadProjectTasks(projectData._id)
 			setForm({
 				projectName: projectData.projectName,
 				projectDescription: projectData.projectDescription ?? '',
@@ -198,6 +225,18 @@ const ProjectDetails = () => {
 		}
 	}
 
+	const toggleTaskStatus = async (task: ApiTask) => {
+		const nextStatus: ApiTaskStatus = task.status === 'done' ? 'todo' : 'done'
+		try {
+			const updatedTask = await updateTaskStatus(task._id, nextStatus)
+			setProjectTasks((prev) => prev.map((item) => (item._id === task._id ? updatedTask : item)))
+			await refreshProject()
+		} catch (requestError) {
+			const nextMessage = requestError instanceof Error ? requestError.message : 'Unable to update task status.'
+			setMessage({ type: 'error', text: nextMessage })
+		}
+	}
+
 	if (loading) {
 		return <div className="pd-loading">Loading project details...</div>
 	}
@@ -326,6 +365,39 @@ const ProjectDetails = () => {
 										{revoking ? 'Revoking...' : 'Revoke Selected'}
 									</button>
 								</div>
+							</article>
+
+							<article className="pd-card">
+								<div className="pd-card-head">
+									<h3>Project Tasks</h3>
+								</div>
+								<p className="pd-meta-text">Task list scoped to this project, grouped by team ownership.</p>
+								{tasksLoading ? (
+									<div className="pd-loading">Loading tasks...</div>
+								) : projectTasks.length === 0 ? (
+									<div className="pd-meta-text">No tasks yet for this project.</div>
+								) : (
+									Object.entries(groupedTasks).map(([teamName, tasks]) => (
+										<div key={teamName} className="pd-task-group">
+											<div className="pd-task-group-head">
+												<strong>{teamName}</strong>
+												<span>{tasks.length} task(s)</span>
+											</div>
+											<div className="pd-team-list">
+												{tasks.map((task) => (
+													<div key={task._id} className="pd-team-check pd-task-row">
+														<span>
+															{task.title} ({task.status})
+														</span>
+														<button className="pd-btn pd-btn-outline" onClick={() => void toggleTaskStatus(task)} type="button">
+															Mark {task.status === 'done' ? 'Todo' : 'Done'}
+														</button>
+													</div>
+												))}
+											</div>
+										</div>
+									))
+								)}
 							</article>
 						</div>
 					)}
