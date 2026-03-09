@@ -1181,7 +1181,6 @@ const Dashboard_CEO = () => {
 				displayUserInitials={displayUserInitials}
 				displayUserName={displayUserName}
 				onToggleProfileMenu={() => setProfileMenuOpen((prev) => !prev)}
-				onOpenEditProfile={() => openModalById('editProfile')}
 				onOpenPreferences={() => switchPanel('settings')}
 				onSignOut={handleProfileSignOut}
 				onSwitchPanel={switchPanel}
