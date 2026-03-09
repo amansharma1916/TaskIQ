@@ -729,6 +729,28 @@
 	font-family: 'Space Grotesk', sans-serif;
 }
 
+.ceo-settings-message {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	font-size: 0.82rem;
+	color: var(--muted);
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.ceo-settings-message.error {
+	color: #ffd1d1;
+	border-color: rgba(248, 113, 113, 0.45);
+	background: rgba(248, 113, 113, 0.12);
+}
+
+.ceo-settings-message.success {
+	color: #b7f7cf;
+	border-color: rgba(74, 222, 128, 0.45);
+	background: rgba(74, 222, 128, 0.14);
+}
+
 .ceo-form-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;

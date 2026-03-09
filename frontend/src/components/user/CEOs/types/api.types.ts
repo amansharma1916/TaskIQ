@@ -106,3 +106,21 @@ export type CreateTaskPayload = {
 }
 
 export type UpdateTaskPayload = Partial<CreateTaskPayload>
+
+export type ApiSettingsProfile = {
+	id: string
+	name: string
+	workEmail: string
+	role: string
+	companyId?: string | null
+}
+
+export type UpdateSettingsProfilePayload = {
+	name: string
+	workEmail: string
+}
+
+export type ChangePasswordPayload = {
+	currentPassword: string
+	newPassword: string
+}

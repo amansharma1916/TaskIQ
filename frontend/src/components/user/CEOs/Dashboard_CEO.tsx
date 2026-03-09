@@ -12,6 +12,7 @@ import DashboardPanel from './Components/panels/DashboardPanel'
 import TeamsPanel from './Components/panels/TeamsPanel'
 import ProjectsPanel from './Components/panels/ProjectsPanel'
 import TasksPanel from './Components/panels/TasksPanel'
+import SettingsPanel from './Components/panels/SettingsPanel'
 import TaskModal, { type TaskFormValue } from './Components/panels/TaskModal'
 import DashboardStat from './Components/shared/DashboardStat'
 import type { ApiMember, ApiProject, ApiProjectStatus, ApiTask, ApiTaskStatus, ApiTeam } from './types/api.types'
@@ -183,14 +184,6 @@ const Dashboard_CEO = () => {
 		projectId: '',
 		teamId: '',
 	})
-	const [notificationState, setNotificationState] = useState<Record<string, boolean>>(() => {
-		const map: Record<string, boolean> = {}
-		for (const item of ceoDashboardData.notificationSettings) {
-			map[item.id] = item.enabled
-		}
-		return map
-	})
-
 	const storedUser: AuthUser | null = getAuthUser()
 
 	const displayCompanyName = storedUser?.companyName?.trim() || ceoDashboardData.orgName
@@ -1324,70 +1317,10 @@ const Dashboard_CEO = () => {
 						</article>
 					</div>
 
-					<div className={`ceo-panel ${activePanel === 'settings' ? 'active' : ''}`}>
-						<div className="ceo-section-head">
-							<h2>Settings</h2>
-						</div>
-						<div className="ceo-settings-layout">
-							<aside className="ceo-settings-nav">
-								{ceoDashboardData.settingsSections.map((section, index) => (
-									<button className={index === 0 ? 'active' : ''} key={section} type="button">
-										{section}
-									</button>
-								))}
-							</aside>
-
-							<article className="ceo-settings-content">
-								<section>
-									<h3>Profile Information</h3>
-									<div className="ceo-form-grid">
-										<label>
-											First Name
-											<input defaultValue="Rahul" type="text" />
-										</label>
-										<label>
-											Last Name
-											<input defaultValue="Kumar" type="text" />
-										</label>
-									</div>
-									<label>
-										Email
-										<input defaultValue={ceoDashboardData.currentUser.email} type="email" />
-									</label>
-									<label>
-										Role / Title
-										<input defaultValue={ceoDashboardData.currentUser.title} type="text" />
-									</label>
-									<button className="ceo-btn-primary" type="button">
-										Save Changes
-									</button>
-								</section>
-
-								<section>
-									<h3>Notifications</h3>
-									{ceoDashboardData.notificationSettings.map((item) => (
-										<div className="ceo-toggle-row" key={item.id}>
-											<div>
-												<p>{item.title}</p>
-												<small>{item.desc}</small>
-											</div>
-											<button
-												aria-label={`Toggle ${item.title}`}
-												className={`ceo-toggle ${notificationState[item.id] ? 'on' : ''}`}
-												onClick={() =>
-													setNotificationState((prev) => ({
-														...prev,
-														[item.id]: !prev[item.id],
-													}))
-												}
-												type="button"
-											/>
-										</div>
-									))}
-								</section>
-							</article>
-						</div>
-					</div>
+					<SettingsPanel
+						isActive={activePanel === 'settings'}
+						sections={ceoDashboardData.settingsSections.filter((section) => section === 'Profile' || section === 'Security')}
+					/>
 				</section>
 			</main>
 
