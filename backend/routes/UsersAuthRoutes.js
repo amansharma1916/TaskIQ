@@ -5,9 +5,20 @@ import Company from "../database/Schemas/Company.js";
 import Invite from "../database/Schemas/Invite.js";
 import Members from "../database/Schemas/Members.js";
 import { buildAuthResponse, hashRefreshToken } from "../utilities/authTokens.js";
+import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
+
+const normalizeEmail = (value) => String(value).toLowerCase().trim();
+
+const buildSafeProfile = (user) => ({
+	id: String(user._id),
+	name: user.name,
+	workEmail: user.workEmail,
+	role: user.role,
+	companyId: user.companyId ? String(user.companyId) : null,
+});
 
 const applySessionAndPersistUser = async (user, company = null) => {
 	const authPayload = buildAuthResponse(user, company);
@@ -243,6 +254,93 @@ router.post("/logout", async (req, res) => {
 		}
 
 		return res.status(200).json({ message: "Logged out" });
+	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.get("/me", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
+	try {
+		const user = await Users.findById(req.user.userId);
+
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		return res.status(200).json({ user: buildSafeProfile(user) });
+	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.put("/me", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
+	try {
+		const { name, workEmail } = req.body;
+
+		if (!name || !workEmail) {
+			return res.status(400).json({ message: "name and workEmail are required" });
+		}
+
+		const normalizedName = String(name).trim();
+		const normalizedWorkEmail = normalizeEmail(workEmail);
+
+		if (!normalizedName) {
+			return res.status(400).json({ message: "name is required" });
+		}
+
+		const user = await Users.findById(req.user.userId);
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const existingUser = await Users.findOne({ workEmail: normalizedWorkEmail });
+		if (existingUser && String(existingUser._id) !== String(user._id)) {
+			return res.status(409).json({ message: "Email is already registered" });
+		}
+
+		user.name = normalizedName;
+		user.workEmail = normalizedWorkEmail;
+		await user.save();
+
+		return res.status(200).json({
+			message: "Profile updated successfully",
+			user: buildSafeProfile(user),
+		});
+	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.patch("/me/password", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
+	try {
+		const { currentPassword, newPassword } = req.body;
+
+		if (!currentPassword || !newPassword) {
+			return res.status(400).json({ message: "currentPassword and newPassword are required" });
+		}
+
+		if (String(newPassword).length < 8) {
+			return res.status(400).json({ message: "Password must be at least 8 characters long" });
+		}
+
+		const user = await Users.findById(req.user.userId).select("+password");
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+		if (!isPasswordValid) {
+			return res.status(400).json({ message: "Current password is incorrect" });
+		}
+
+		if (currentPassword === newPassword) {
+			return res.status(400).json({ message: "New password must be different from current password" });
+		}
+
+		user.password = newPassword;
+		await user.save();
+
+		return res.status(200).json({ message: "Password updated successfully" });
 	} catch (error) {
 		return res.status(500).json({ message: error.message });
 	}

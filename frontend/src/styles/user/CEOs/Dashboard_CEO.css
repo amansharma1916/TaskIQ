@@ -38,12 +38,10 @@
 }
 
 .ceo-logo-area {
-	border: 0;
 	border-bottom: 1px solid var(--border);
 	background: transparent;
 	padding: 22px 20px 18px;
 	text-align: left;
-	cursor: pointer;
 }
 
 .ceo-logo {
@@ -73,14 +71,17 @@
 
 .ceo-profile-menu {
 	position: absolute;
-	top: 84px;
-	left: 14px;
 	width: 200px;
 	z-index: 15;
 	border-radius: 12px;
 	border: 1px solid var(--border);
 	background: var(--bg3);
 	overflow: hidden;
+}
+
+.ceo-profile-menu-bottom {
+	left: 0;
+	bottom: calc(100% + 8px);
 }
 
 .ceo-profile-menu button {
@@ -182,6 +183,11 @@
 	gap: 10px;
 	color: var(--white);
 	cursor: pointer;
+}
+
+.ceo-user-area {
+	position: relative;
+	margin: 12px;
 }
 
 .ceo-avatar,
@@ -727,6 +733,28 @@
 .ceo-settings-content h3 {
 	margin: 0 0 14px;
 	font-family: 'Space Grotesk', sans-serif;
+}
+
+.ceo-settings-message {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	font-size: 0.82rem;
+	color: var(--muted);
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.ceo-settings-message.error {
+	color: #ffd1d1;
+	border-color: rgba(248, 113, 113, 0.45);
+	background: rgba(248, 113, 113, 0.12);
+}
+
+.ceo-settings-message.success {
+	color: #b7f7cf;
+	border-color: rgba(74, 222, 128, 0.45);
+	background: rgba(74, 222, 128, 0.14);
 }
 
 .ceo-form-grid {

@@ -183,7 +183,7 @@ export const ceoDashboardData: DashboardData = {
 		{ id: 'as3', label: 'Overdue', value: '5', delta: '+2 since last week', trend: 'down', tone: 'yellow' },
 		{ id: 'as4', label: 'Team Velocity', value: '87%', delta: 'On track', trend: 'up', tone: 'purple' },
 	],
-	settingsSections: ['Profile', 'Organization', 'Security', 'Notifications', 'Billing', 'Integrations'],
+	settingsSections: ['Profile', 'Security'],
 	notificationSettings: [
 		{ id: 'n1', title: 'Email Digest', desc: 'Daily summary of team activity', enabled: true },
 		{ id: 'n2', title: 'Task Reminders', desc: 'Alerts for overdue tasks', enabled: true },
