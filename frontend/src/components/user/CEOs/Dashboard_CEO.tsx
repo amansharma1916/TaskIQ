@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
 import '../../../styles/user/CEOs/ProjectTeamModal.css'
@@ -15,7 +15,7 @@ import TasksPanel from './Components/panels/TasksPanel'
 import TaskModal, { type TaskFormValue } from './Components/panels/TaskModal'
 import DashboardStat from './Components/shared/DashboardStat'
 import type { ApiMember, ApiProject, ApiProjectStatus, ApiTask, ApiTaskStatus, ApiTeam } from './types/api.types'
-import type { ModalId, PanelId, ProjectCard } from './types/dashboard.types'
+import type { ModalId, PanelId, ProgressItem, ProjectCard, StatCard, TaskItem } from './types/dashboard.types'
 import { avatarTones, modalTitles } from './utils/constants'
 import { getInitials } from './utils/formatters'
 import { assignTeams, createProject, deleteProject, getProjects, revokeTeams } from '../../../services/projects'
@@ -65,6 +65,43 @@ const mapDummyTaskToApiTask = (task: (typeof ceoDashboardData.allTasks)[number],
 			}
 		: null,
 })
+
+const toDateAtStartOfDay = (value?: string | null): Date | null => {
+	if (!value) {
+		return null
+	}
+
+	const parsed = new Date(value)
+	if (Number.isNaN(parsed.getTime())) {
+		return null
+	}
+
+	return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+}
+
+const mapPriorityToChip = (priority: ApiTask['priority']): Pick<TaskItem, 'chip' | 'chipTone'> => {
+	if (priority === 'high') {
+		return { chip: 'High', chipTone: 'ops' }
+	}
+
+	if (priority === 'low') {
+		return { chip: 'Low', chipTone: 'hr' }
+	}
+
+	return { chip: 'Medium', chipTone: 'dev' }
+}
+
+const mapProgressTone = (value: number): ProgressItem['tone'] => {
+	if (value >= 80) {
+		return 'green'
+	}
+
+	if (value >= 50) {
+		return 'cyan'
+	}
+
+	return 'yellow'
+}
 
 const Dashboard_CEO = () => {
 	const navigate = useNavigate()
@@ -126,13 +163,6 @@ const Dashboard_CEO = () => {
 	const [forceDisbandingTeamId, setForceDisbandingTeamId] = useState<string | null>(null)
 	const [teamOptionsOpenFor, setTeamOptionsOpenFor] = useState<string | null>(null)
 	const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-	const [taskState, setTaskState] = useState<Record<string, boolean>>(() => {
-		const map: Record<string, boolean> = {}
-		for (const item of [...ceoDashboardData.todayTasks, ...ceoDashboardData.allTasks]) {
-			map[item.id] = item.done
-		}
-		return map
-	})
 	const [tasksData, setTasksData] = useState<ApiTask[]>([])
 	const [taskActionError, setTaskActionError] = useState('')
 	const [isSavingTask, setIsSavingTask] = useState(false)
@@ -170,7 +200,7 @@ const Dashboard_CEO = () => {
 	const isCeoUser = storedUser?.role === 'CEO'
 	const companyId = storedUser?.companyId ?? null
 
-	const fetchTeamsAndMembers = async () => {
+	const fetchTeamsAndMembers = useCallback(async () => {
 		try {
 			if (!companyId) {
 				throw new Error('Company not found for current user')
@@ -220,9 +250,9 @@ const Dashboard_CEO = () => {
 		} catch (error) {
 			console.error('Using fallback CEO team/member data:', error)
 		}
-	}
+	}, [companyId])
 
-	const fetchProjectsData = async () => {
+	const fetchProjectsData = useCallback(async () => {
 		try {
 			if (!companyId) {
 				throw new Error('Company not found for current user')
@@ -233,9 +263,9 @@ const Dashboard_CEO = () => {
 		} catch (error) {
 			console.error('Using fallback CEO project data:', error)
 		}
-	}
+	}, [companyId])
 
-	const fetchTasksData = async (projectHintId?: string | null) => {
+	const fetchTasksData = useCallback(async (projectHintId?: string | null) => {
 		try {
 			if (!companyId) {
 				throw new Error('Company not found for current user')
@@ -248,11 +278,11 @@ const Dashboard_CEO = () => {
 			const fallbackProjectId = projectHintId || projectsData[0]?.id || 'fallback-project'
 			setTasksData(ceoDashboardData.allTasks.map((task) => mapDummyTaskToApiTask(task, fallbackProjectId)))
 		}
-	}
+	}, [companyId, projectsData])
 
 	useEffect(() => {
 		void Promise.all([fetchTeamsAndMembers(), fetchProjectsData()])
-	}, [])
+	}, [fetchProjectsData, fetchTeamsAndMembers])
 
 	useEffect(() => {
 		if (projectsData.length === 0) {
@@ -260,7 +290,7 @@ const Dashboard_CEO = () => {
 		}
 
 		void fetchTasksData(projectsData[0]?.id)
-	}, [projectsData.length])
+	}, [fetchTasksData, projectsData])
 
 	const onlineMembers = membersData.slice(0, 4)
 	const selectedTeamForRevoke = selectedTeamIdForRevoke
@@ -289,6 +319,180 @@ const Dashboard_CEO = () => {
 		}),
 		[projectsData.length]
 	)
+	const dashboardStats = useMemo<StatCard[]>(() => {
+		const totalProjects = projectsData.length
+		const activeProjects = projectsData.filter((project) => project.status === 'active').length
+		const openTasks = tasksData.filter((task) => task.status !== 'done').length
+		const overdueOpenTasks = tasksData.filter((task) => {
+			if (task.status === 'done') {
+				return false
+			}
+
+			const dueDate = toDateAtStartOfDay(task.dueDate)
+			if (!dueDate) {
+				return false
+			}
+
+			const today = toDateAtStartOfDay(new Date().toISOString())
+			return today ? dueDate.getTime() < today.getTime() : false
+		}).length
+		const doneTasks = tasksData.filter((task) => task.status === 'done').length
+		const sprintProgress = tasksData.length > 0 ? Math.round((doneTasks / tasksData.length) * 100) : 0
+
+		return [
+			{
+				id: 'active-projects',
+				label: 'Active Projects',
+				value: String(activeProjects),
+				delta: `${totalProjects} total projects`,
+				trend: activeProjects > 0 ? 'up' : 'down',
+				tone: 'cyan',
+			},
+			{
+				id: 'team-members',
+				label: 'Team Members',
+				value: String(membersData.length),
+				delta: `${teamsData.length} teams`,
+				trend: membersData.length > 0 ? 'up' : 'down',
+				tone: 'purple',
+			},
+			{
+				id: 'open-tasks',
+				label: 'Open Tasks',
+				value: String(openTasks),
+				delta: overdueOpenTasks > 0 ? `${overdueOpenTasks} overdue` : 'No overdue tasks',
+				trend: overdueOpenTasks > 0 ? 'down' : 'up',
+				tone: 'yellow',
+			},
+			{
+				id: 'sprint-progress',
+				label: 'Sprint Progress',
+				value: `${sprintProgress}%`,
+				delta: doneTasks > 0 ? `${doneTasks} completed` : 'No tasks completed yet',
+				trend: sprintProgress >= 50 ? 'up' : 'down',
+				tone: 'green',
+			},
+		]
+	}, [membersData.length, projectsData, tasksData, teamsData.length])
+
+	const dashboardTodayTasks = useMemo<TaskItem[]>(() => {
+		const today = toDateAtStartOfDay(new Date().toISOString())
+		const dueToday = tasksData
+			.filter((task) => {
+				const dueDate = toDateAtStartOfDay(task.dueDate)
+				if (!dueDate || !today) {
+					return false
+				}
+
+				return dueDate.getTime() === today.getTime()
+			})
+			.slice(0, 5)
+
+		const source = dueToday.length > 0 ? dueToday : tasksData.slice(0, 5)
+
+		return source.map((task) => {
+			const chip = mapPriorityToChip(task.priority)
+			return {
+				id: task._id,
+				name: task.title,
+				chip: chip.chip,
+				chipTone: chip.chipTone,
+				done: task.status === 'done',
+				assignee: task.assignee?.memberName,
+			}
+		})
+	}, [tasksData])
+
+	const todayTaskLookup = useMemo(() => {
+		return new Map(dashboardTodayTasks.map((task) => [task.id, tasksData.find((item) => item._id === task.id)]))
+	}, [dashboardTodayTasks, tasksData])
+
+	const dashboardTaskState = useMemo(() => {
+		const map: Record<string, boolean> = {}
+		for (const task of dashboardTodayTasks) {
+			map[task.id] = task.done
+		}
+		return map
+	}, [dashboardTodayTasks])
+
+	const projectHealthItems = useMemo<ProgressItem[]>(() => {
+		return projectsData.slice(0, 4).map((project) => ({
+			id: project.id,
+			name: project.name,
+			value: project.progress,
+			tone: mapProgressTone(project.progress),
+		}))
+	}, [projectsData])
+
+	const analyticsStats = useMemo<StatCard[]>(() => {
+		const completedTasks = tasksData.filter((task) => task.status === 'done')
+		const overdueTasks = tasksData.filter((task) => {
+			if (task.status === 'done') {
+				return false
+			}
+
+			const dueDate = toDateAtStartOfDay(task.dueDate)
+			const today = toDateAtStartOfDay(new Date().toISOString())
+			return dueDate && today ? dueDate.getTime() < today.getTime() : false
+		}).length
+		const velocity = tasksData.length > 0 ? Math.round((completedTasks.length / tasksData.length) * 100) : 0
+
+		const durationsInDays = completedTasks
+			.map((task) => {
+				if (!task.createdAt || !task.updatedAt) {
+					return null
+				}
+
+				const createdAt = new Date(task.createdAt)
+				const updatedAt = new Date(task.updatedAt)
+				if (Number.isNaN(createdAt.getTime()) || Number.isNaN(updatedAt.getTime())) {
+					return null
+				}
+
+				const ms = Math.max(0, updatedAt.getTime() - createdAt.getTime())
+				return ms / (1000 * 60 * 60 * 24)
+			})
+			.filter((value): value is number => value !== null)
+
+		const avgCompletionDays = durationsInDays.length
+			? `${(durationsInDays.reduce((total, value) => total + value, 0) / durationsInDays.length).toFixed(1)}d`
+			: '--'
+
+		return [
+			{
+				id: 'as1',
+				label: 'Tasks Completed',
+				value: String(completedTasks.length),
+				delta: `${tasksData.length} total tasks`,
+				trend: completedTasks.length > 0 ? 'up' : 'down',
+				tone: 'green',
+			},
+			{
+				id: 'as2',
+				label: 'Avg Completion',
+				value: avgCompletionDays,
+				delta: durationsInDays.length > 0 ? 'Based on completed tasks' : 'Waiting for completion data',
+				trend: durationsInDays.length > 0 ? 'up' : 'down',
+				tone: 'cyan',
+			},
+			{
+				id: 'as3',
+				label: 'Overdue',
+				value: String(overdueTasks),
+				delta: overdueTasks > 0 ? 'Needs attention' : 'All tasks on schedule',
+				trend: overdueTasks > 0 ? 'down' : 'up',
+				tone: 'yellow',
+			},
+			{
+				id: 'as4',
+				label: 'Team Velocity',
+				value: `${velocity}%`,
+				delta: `${projectsData.length} active workstreams`,
+				trend: velocity >= 50 ? 'up' : 'down',
+				tone: 'purple',
+			},
+		]
+	}, [projectsData.length, tasksData])
 
 	useEffect(() => {
 		if (!actionAlert) {
@@ -327,7 +531,12 @@ const Dashboard_CEO = () => {
 	}, [teamOptionsOpenFor])
 
 	const toggleTask = (taskId: string) => {
-		setTaskState((prev) => ({ ...prev, [taskId]: !prev[taskId] }))
+		const selectedTask = todayTaskLookup.get(taskId)
+		if (!selectedTask) {
+			return
+		}
+
+		void handleToggleTaskStatus(selectedTask)
 	}
 
 	const switchPanel = (panel: PanelId) => {
@@ -1004,12 +1213,12 @@ const Dashboard_CEO = () => {
 				<section className="ceo-content">
 					<DashboardPanel
 						isActive={activePanel === 'dashboard'}
-						stats={ceoDashboardData.stats}
-						todayTasks={ceoDashboardData.todayTasks}
+						stats={dashboardStats}
+						todayTasks={dashboardTodayTasks}
 						onlineMembers={onlineMembers}
-						projectHealth={ceoDashboardData.projectHealth}
+						projectHealth={projectHealthItems}
 						activity={ceoDashboardData.activity}
-						taskState={taskState}
+						taskState={dashboardTaskState}
 						onToggleTask={toggleTask}
 						onSwitchPanel={switchPanel}
 					/>
@@ -1103,7 +1312,7 @@ const Dashboard_CEO = () => {
 							<h2>Analytics</h2>
 						</div>
 						<div className="ceo-stats-row">
-							{ceoDashboardData.analyticsStats.map((stat) => (
+								{analyticsStats.map((stat) => (
 								<DashboardStat key={stat.id} stat={stat} />
 							))}
 						</div>
