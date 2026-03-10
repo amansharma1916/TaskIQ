@@ -92,9 +92,30 @@ export type TaskListParams = {
 	teamId?: string
 	status?: ApiTaskStatus
 	priority?: ApiTaskPriority
-	assigneeMemberId?: string
+	assigneeMemberId?: string | 'unassigned'
 	createdBy?: string
 	q?: string
+}
+
+export type TaskListSortBy = 'createdAt' | 'dueDate' | 'status' | 'priority' | 'title'
+
+export type TaskListSortOrder = 'asc' | 'desc'
+
+export type PaginatedTaskListParams = TaskListParams & {
+	page?: number
+	limit?: number
+	sortBy?: TaskListSortBy
+	sortOrder?: TaskListSortOrder
+}
+
+export type ApiTaskListResponse = {
+	items: ApiTask[]
+	page: number
+	limit: number
+	total: number
+	totalPages: number
+	sortBy: TaskListSortBy
+	sortOrder: TaskListSortOrder
 }
 
 export type CreateTaskPayload = {
@@ -108,6 +129,42 @@ export type CreateTaskPayload = {
 }
 
 export type UpdateTaskPayload = Partial<CreateTaskPayload>
+
+export type BulkTaskStatusPayload = {
+	taskIds: string[]
+	status: ApiTaskStatus
+}
+
+export type BulkTaskAssignPayload = {
+	taskIds: string[]
+	assigneeMemberId: string | null
+}
+
+export type BulkTaskDeletePayload = {
+	taskIds: string[]
+}
+
+export type BulkTaskFailure = {
+	taskId: string
+	reason: string
+}
+
+export type BulkTaskSummary = {
+	requested: number
+	succeeded: number
+	failed: number
+}
+
+export type BulkTaskResult = {
+	message: string
+	successIds: string[]
+	failed: BulkTaskFailure[]
+	summary?: BulkTaskSummary
+}
+
+export type DuplicateTaskPayload = {
+	title?: string
+}
 
 export type ApiSettingsProfile = {
 	id: string

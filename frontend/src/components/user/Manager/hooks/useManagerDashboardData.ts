@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getProjects } from '../../../../services/projects'
-import { getTasks } from '../../../../services/tasks'
+import { getTasks, getTasksPage } from '../../../../services/tasks'
 import { getTeams } from '../../../../services/teams'
 import { getActivityFeed } from '../../../../services/activity'
 import { authorizedFetch } from '../../../../services/apiClient'
@@ -11,10 +11,12 @@ import type {
 	ManagerDataState,
 	ManagerMemberOption,
 	ManagerProjectCard,
+	ManagerTaskPageState,
+	ManagerTaskQuery,
 	ManagerTaskRow,
 	ManagerTeamCard,
 } from '../types/manager.types'
-import type { ApiMember } from '../../CEOs/types/api.types'
+import type { ApiMember, PaginatedTaskListParams } from '../../CEOs/types/api.types'
 
 type UseManagerDashboardDataResult = {
 	projects: ManagerProjectCard[]
@@ -25,7 +27,39 @@ type UseManagerDashboardDataResult = {
 	teamBacklogTasks: ManagerTaskRow[]
 	state: ManagerDataState
 	members: ManagerMemberOption[]
+	taskQuery: ManagerTaskQuery
+	taskPageState: ManagerTaskPageState
+	setTaskQuery: (updater: (prev: ManagerTaskQuery) => ManagerTaskQuery) => void
+	reloadTasks: () => Promise<void>
 	reloadAll: () => Promise<void>
+}
+
+const DEFAULT_TASK_QUERY: ManagerTaskQuery = {
+	q: '',
+	status: 'all',
+	priority: 'all',
+	projectId: 'all',
+	teamId: 'all',
+	assigneeMemberId: 'all',
+	page: 1,
+	limit: 20,
+	sortBy: 'createdAt',
+	sortOrder: 'desc',
+}
+
+const toTaskListParams = (query: ManagerTaskQuery): PaginatedTaskListParams => {
+	return {
+		q: query.q || undefined,
+		status: query.status === 'all' ? undefined : query.status,
+		priority: query.priority === 'all' ? undefined : query.priority,
+		projectId: query.projectId === 'all' ? undefined : query.projectId,
+		teamId: query.teamId === 'all' ? undefined : query.teamId,
+		assigneeMemberId: query.assigneeMemberId === 'all' ? undefined : query.assigneeMemberId,
+		page: query.page,
+		limit: query.limit,
+		sortBy: query.sortBy,
+		sortOrder: query.sortOrder,
+	}
 }
 
 const getCompanyMembers = async (): Promise<ApiMember[]> => {
@@ -45,10 +79,39 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 	const [members, setMembers] = useState<ManagerMemberOption[]>([])
 	const [myAssignedTasks, setMyAssignedTasks] = useState<ManagerTaskRow[]>([])
 	const [teamBacklogTasks, setTeamBacklogTasks] = useState<ManagerTaskRow[]>([])
+	const [taskQuery, setTaskQueryState] = useState<ManagerTaskQuery>(DEFAULT_TASK_QUERY)
+	const [taskPageState, setTaskPageState] = useState<ManagerTaskPageState>({
+		page: 1,
+		limit: 20,
+		total: 0,
+		totalPages: 1,
+	})
 	const [state, setState] = useState<ManagerDataState>({
 		isLoading: true,
 		error: '',
 	})
+
+	const setTaskQuery = useCallback((updater: (prev: ManagerTaskQuery) => ManagerTaskQuery) => {
+		setTaskQueryState((prev) => updater(prev))
+	}, [])
+
+	const reloadTasks = useCallback(async () => {
+		try {
+			const taskPage = await getTasksPage(toTaskListParams(taskQuery))
+			setTasks(taskPage.items.map(mapApiTaskToManagerTaskRow))
+			setTaskPageState({
+				page: taskPage.page,
+				limit: taskPage.limit,
+				total: taskPage.total,
+				totalPages: taskPage.totalPages,
+			})
+		} catch (error) {
+			setState((prev) => ({
+				...prev,
+				error: error instanceof Error ? error.message : 'Failed to load tasks',
+			}))
+		}
+	}, [taskQuery])
 
 	const reloadAll = useCallback(async () => {
 		setState({ isLoading: true, error: '' })
@@ -78,7 +141,6 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 
 			setProjects(projectRows.map(mapApiProjectToManagerCard))
 			const mappedTasks = taskRows.map(mapApiTaskToManagerTaskRow)
-			setTasks(mappedTasks)
 			setTeams(teamRows.map(mapApiTeamToManagerTeamCard))
 			setActivity(activityRows)
 
@@ -105,6 +167,10 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		void reloadAll()
 	}, [reloadAll])
 
+	useEffect(() => {
+		void reloadTasks()
+	}, [reloadTasks])
+
 	return {
 		projects,
 		tasks,
@@ -113,6 +179,10 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		members,
 		myAssignedTasks,
 		teamBacklogTasks,
+		taskQuery,
+		taskPageState,
+		setTaskQuery,
+		reloadTasks,
 		state,
 		reloadAll,
 	}

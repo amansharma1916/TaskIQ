@@ -29,9 +29,12 @@ export const mapApiProjectToManagerCard = (project: ApiProject): ManagerProjectC
 export const mapApiTaskToManagerTaskRow = (task: ApiTask): ManagerTaskRow => ({
 	id: task._id,
 	title: task.title,
+	description: task.description?.trim() || '',
 	status: task.status,
 	priority: task.priority,
+	projectId: task.projectId?._id ?? null,
 	projectName: task.projectId?.projectName || 'Unknown project',
+	dueDate: task.dueDate ?? null,
 	teamId: task.teamId?._id ?? null,
 	teamName: task.teamId?.teamName || 'Unassigned',
 	assigneeMemberId: task.assignee?._id ?? null,

@@ -1,4 +1,4 @@
-import type { ApiTaskStatus } from '../../CEOs/types/api.types'
+import type { ApiTaskPriority, ApiTaskStatus, TaskListSortBy, TaskListSortOrder } from '../../CEOs/types/api.types'
 import type { ApiProjectStatus } from '../../CEOs/types/api.types'
 
 export type ManagerPanelId = 'projects' | 'tasks' | 'teams' | 'activity' | 'my-assignments'
@@ -18,13 +18,36 @@ export type ManagerProjectCard = {
 export type ManagerTaskRow = {
 	id: string
 	title: string
+	description: string
 	status: ApiTaskStatus
-	priority: string
+	priority: ApiTaskPriority
+	projectId: string | null
 	projectName: string
+	dueDate: string | null
 	teamId: string | null
 	teamName: string
 	assigneeMemberId: string | null
 	assigneeName: string | null
+}
+
+export type ManagerTaskQuery = {
+	q: string
+	status: ApiTaskStatus | 'all'
+	priority: ApiTaskPriority | 'all'
+	projectId: string | 'all'
+	teamId: string | 'all'
+	assigneeMemberId: string | 'all' | 'unassigned'
+	page: number
+	limit: number
+	sortBy: TaskListSortBy
+	sortOrder: TaskListSortOrder
+}
+
+export type ManagerTaskPageState = {
+	page: number
+	limit: number
+	total: number
+	totalPages: number
 }
 
 export type ManagerMemberOption = {

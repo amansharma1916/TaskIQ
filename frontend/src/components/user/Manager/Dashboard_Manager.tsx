@@ -12,10 +12,16 @@ import ManagerTeamsPanel from './components/panels/ManagerTeamsPanel'
 import ManagerActivityPanel from './components/panels/ManagerActivityPanel'
 import ManagerMyAssignmentsPanel from './components/panels/ManagerMyAssignmentsPanel'
 import { useManagerDashboardData } from './hooks/useManagerDashboardData'
-import { assignTask, deleteTask, updateTaskStatus } from '../../../services/tasks'
+import {
+  assignTask,
+  createTask,
+  deleteTask,
+  updateTask,
+  updateTaskStatus,
+} from '../../../services/tasks'
 import { assignTeams, createProject, revokeTeams, updateProject } from '../../../services/projects'
 import type { ApiProjectStatus, ApiTaskStatus } from '../CEOs/types/api.types'
-import type { ManagerPanelId } from './types/manager.types'
+import type { ManagerPanelId, ManagerTaskQuery } from './types/manager.types'
 
 const getInitials = (name?: string): string => {
   if (!name) {
@@ -38,7 +44,21 @@ const Dashboard_Manager = () => {
   const [projectActionError, setProjectActionError] = useState('')
   const [isTaskMutating, setIsTaskMutating] = useState(false)
   const [taskActionError, setTaskActionError] = useState('')
-  const { projects, tasks, teams, activity, members, myAssignedTasks, teamBacklogTasks, state, reloadAll } = useManagerDashboardData()
+  const {
+    projects,
+    tasks,
+    teams,
+    activity,
+    members,
+    myAssignedTasks,
+    teamBacklogTasks,
+    taskQuery,
+    taskPageState,
+    setTaskQuery,
+    reloadTasks,
+    state,
+    reloadAll,
+  } = useManagerDashboardData()
 
   const user = getAuthUser()
   const displayCompanyName = user?.companyName?.trim() || 'TaskIQ'
@@ -126,9 +146,56 @@ const Dashboard_Manager = () => {
 
     try {
       await updateTaskStatus(taskId, status)
-      await reloadAll()
+      await Promise.all([reloadAll(), reloadTasks()])
     } catch (error) {
       setTaskActionError(error instanceof Error ? error.message : 'Failed to update task status')
+    } finally {
+      setIsTaskMutating(false)
+    }
+  }
+
+  const handleTaskCreate = async (payload: {
+    title: string
+    description?: string
+    status: ApiTaskStatus
+    priority: 'low' | 'medium' | 'high'
+    dueDate?: string | null
+    projectId: string
+    teamId?: string | null
+  }) => {
+    setTaskActionError('')
+    setIsTaskMutating(true)
+
+    try {
+      await createTask(payload)
+      await Promise.all([reloadAll(), reloadTasks()])
+    } catch (error) {
+      setTaskActionError(error instanceof Error ? error.message : 'Failed to create task')
+    } finally {
+      setIsTaskMutating(false)
+    }
+  }
+
+  const handleTaskEdit = async (
+    taskId: string,
+    payload: {
+      title: string
+      description?: string
+      status: ApiTaskStatus
+      priority: 'low' | 'medium' | 'high'
+      dueDate?: string | null
+      projectId: string
+      teamId?: string | null
+    }
+  ) => {
+    setTaskActionError('')
+    setIsTaskMutating(true)
+
+    try {
+      await updateTask(taskId, payload)
+      await Promise.all([reloadAll(), reloadTasks()])
+    } catch (error) {
+      setTaskActionError(error instanceof Error ? error.message : 'Failed to update task')
     } finally {
       setIsTaskMutating(false)
     }
@@ -140,7 +207,7 @@ const Dashboard_Manager = () => {
 
     try {
       await assignTask(taskId, assigneeMemberId)
-      await reloadAll()
+      await Promise.all([reloadAll(), reloadTasks()])
     } catch (error) {
       setTaskActionError(error instanceof Error ? error.message : 'Failed to update task assignee')
     } finally {
@@ -154,12 +221,16 @@ const Dashboard_Manager = () => {
 
     try {
       await deleteTask(taskId)
-      await reloadAll()
+      await Promise.all([reloadAll(), reloadTasks()])
     } catch (error) {
       setTaskActionError(error instanceof Error ? error.message : 'Failed to delete task')
     } finally {
       setIsTaskMutating(false)
     }
+  }
+
+  const handleTaskQueryChange = (updater: (prev: ManagerTaskQuery) => ManagerTaskQuery) => {
+    setTaskQuery(updater)
   }
 
   return (
@@ -199,9 +270,16 @@ const Dashboard_Manager = () => {
             isMutating={isTaskMutating}
             tasks={tasks}
             members={members}
+            projects={projects}
+            teams={teams}
+            taskQuery={taskQuery}
+            taskPageState={taskPageState}
+            onTaskQueryChange={handleTaskQueryChange}
             onUpdateStatus={(taskId, status) => void handleTaskStatusUpdate(taskId, status)}
             onAssign={(taskId, assigneeMemberId) => void handleTaskAssigneeUpdate(taskId, assigneeMemberId)}
             onDelete={(taskId) => void handleTaskDelete(taskId)}
+            onCreateTask={(payload) => void handleTaskCreate(payload)}
+            onEditTask={(taskId, payload) => void handleTaskEdit(taskId, payload)}
           />
           <ManagerMyAssignmentsPanel
             isActive={activePanel === 'my-assignments'}

@@ -43,6 +43,68 @@ const parseDateOrNull = (value) => {
 const isValidStatus = (value) => ["todo", "in-progress", "done"].includes(value);
 const isValidPriority = (value) => ["low", "medium", "high"].includes(value);
 
+const parsePositiveIntOrNull = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const parsed = Number.parseInt(String(value), 10);
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const listSortMap = {
+  createdAt: "createdAt",
+  dueDate: "dueDate",
+  status: "status",
+  priority: "priority",
+  title: "title",
+};
+
+const parseSortOptions = (sortBy, sortOrder) => {
+  const key = typeof sortBy === "string" ? listSortMap[sortBy] : null;
+  const order = String(sortOrder).toLowerCase() === "asc" ? 1 : -1;
+
+  if (!key) {
+    return { createdAt: -1 };
+  }
+
+  return { [key]: order, createdAt: -1 };
+};
+
+const parseTaskIdList = (taskIds) => {
+  if (!Array.isArray(taskIds)) {
+    return { validIds: [], invalidIds: [] };
+  }
+
+  const uniqueInputIds = [...new Set(taskIds.map((value) => String(value)))]
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  const validIds = [];
+  const invalidIds = [];
+
+  for (const id of uniqueInputIds) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      invalidIds.push(id);
+      continue;
+    }
+
+    validIds.push(new mongoose.Types.ObjectId(id));
+  }
+
+  return { validIds, invalidIds };
+};
+
+const buildBulkSummary = (requestedCount, successCount, failedCount) => ({
+  requested: requestedCount,
+  succeeded: successCount,
+  failed: failedCount,
+});
+
 const syncProjectTaskStats = async (projectId, companyId) => {
   if (!projectId) {
     return;
@@ -201,7 +263,7 @@ router.get("/", async (req, res) => {
       return;
     }
 
-    const { projectId, teamId, status, priority, q, assigneeMemberId, createdBy } = req.query;
+    const { projectId, teamId, status, priority, q, assigneeMemberId, createdBy, page, limit, sortBy, sortOrder } = req.query;
     const filter = { companyId };
 
     const parsedProjectId = parseObjectIdOrNull(projectId);
@@ -261,13 +323,235 @@ router.get("/", async (req, res) => {
       filter.createdBy = parsedCreatedById;
     }
 
-    const tasks = await Tasks.find(applyTaskScopeFilter(req, filter))
-      .sort({ createdAt: -1 })
+    const scopedFilter = applyTaskScopeFilter(req, filter);
+    const parsedPage = parsePositiveIntOrNull(page);
+    const parsedLimit = parsePositiveIntOrNull(limit);
+    const shouldPaginate = parsedPage !== null || parsedLimit !== null;
+    const nextPage = parsedPage ?? 1;
+    const nextLimit = Math.min(parsedLimit ?? 20, 100);
+
+    const query = Tasks.find(scopedFilter)
+      .sort(parseSortOptions(sortBy, sortOrder))
       .populate("projectId", "projectName")
       .populate("teamId", "teamName")
       .populate("assignee", "memberName memberRole userId");
 
-    return res.json(tasks);
+    if (!shouldPaginate) {
+      const tasks = await query;
+      return res.json(tasks);
+    }
+
+    const skip = (nextPage - 1) * nextLimit;
+    query.skip(skip).limit(nextLimit);
+
+    const [items, total] = await Promise.all([query, Tasks.countDocuments(scopedFilter)]);
+    const totalPages = Math.max(1, Math.ceil(total / nextLimit));
+
+    return res.json({
+      items,
+      page: nextPage,
+      limit: nextLimit,
+      total,
+      totalPages,
+      sortBy: typeof sortBy === "string" && listSortMap[sortBy] ? sortBy : "createdAt",
+      sortOrder: String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc",
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/bulk/status", authorizeRoles("CEO", "Manager"), authorizeCapability("tasks:update"), async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const { taskIds, status } = req.body;
+    if (!isValidStatus(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const { validIds, invalidIds } = parseTaskIdList(taskIds);
+    const requestedCount = Array.isArray(taskIds) ? taskIds.length : 0;
+    if (validIds.length === 0 && invalidIds.length === 0) {
+      return res.status(400).json({ message: "taskIds must be a non-empty array" });
+    }
+
+    const failed = invalidIds.map((taskId) => ({ taskId, reason: "Invalid task id" }));
+    const eligibleTasks = await Tasks.find(applyTaskScopeFilter(req, { _id: { $in: validIds }, companyId }));
+    const eligibleTaskIdSet = new Set(eligibleTasks.map((task) => String(task._id)));
+
+    for (const taskId of validIds.map((id) => String(id))) {
+      if (!eligibleTaskIdSet.has(taskId)) {
+        failed.push({ taskId, reason: "Task not found or outside your scope" });
+      }
+    }
+
+    const successIds = [];
+    const touchedProjectIds = new Set();
+    for (const task of eligibleTasks) {
+      task.status = status;
+      await task.save();
+      successIds.push(String(task._id));
+      touchedProjectIds.add(String(task.projectId));
+
+      await logActivity({
+        req,
+        action: "task.status.update",
+        targetType: "task",
+        targetId: task._id,
+        teamId: task.teamId,
+        metadata: {
+          status,
+          bulk: true,
+        },
+      });
+    }
+
+    await Promise.all([...touchedProjectIds].map((projectId) => syncProjectTaskStats(projectId, companyId)));
+
+    return res.json({
+      message: "Bulk status update completed",
+      successIds,
+      failed,
+      summary: buildBulkSummary(requestedCount, successIds.length, failed.length),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/bulk/assign", authorizeRoles("CEO", "Manager"), authorizeCapability("tasks:assign"), async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const { taskIds, assigneeMemberId } = req.body;
+    if (assigneeMemberId !== null && !parseObjectIdOrNull(assigneeMemberId)) {
+      return res.status(400).json({ message: "assigneeMemberId must be a valid member id or null" });
+    }
+
+    const { validIds, invalidIds } = parseTaskIdList(taskIds);
+    const requestedCount = Array.isArray(taskIds) ? taskIds.length : 0;
+    if (validIds.length === 0 && invalidIds.length === 0) {
+      return res.status(400).json({ message: "taskIds must be a non-empty array" });
+    }
+
+    const failed = invalidIds.map((taskId) => ({ taskId, reason: "Invalid task id" }));
+    const eligibleTasks = await Tasks.find(applyTaskScopeFilter(req, { _id: { $in: validIds }, companyId }));
+    const eligibleTaskIdSet = new Set(eligibleTasks.map((task) => String(task._id)));
+
+    for (const taskId of validIds.map((id) => String(id))) {
+      if (!eligibleTaskIdSet.has(taskId)) {
+        failed.push({ taskId, reason: "Task not found or outside your scope" });
+      }
+    }
+
+    let assignee = null;
+    if (assigneeMemberId) {
+      assignee = await ensureCompanyMember(assigneeMemberId, companyId);
+      if (!assignee) {
+        return res.status(404).json({ message: "Assignee member not found" });
+      }
+    }
+
+    const successIds = [];
+    for (const task of eligibleTasks) {
+      if (!task.teamId) {
+        failed.push({ taskId: String(task._id), reason: "Task must be linked to a team before assignment" });
+        continue;
+      }
+
+      if (assignee?._id && (!assignee.memberTeam || String(assignee.memberTeam) !== String(task.teamId))) {
+        failed.push({ taskId: String(task._id), reason: "Assignee must belong to task team" });
+        continue;
+      }
+
+      task.assignee = assignee?._id ?? null;
+      await task.save();
+      successIds.push(String(task._id));
+
+      await logActivity({
+        req,
+        action: "task.assign",
+        targetType: "task",
+        targetId: task._id,
+        teamId: task.teamId,
+        metadata: {
+          assigneeMemberId: assignee?._id ? String(assignee._id) : null,
+          bulk: true,
+        },
+      });
+    }
+
+    return res.json({
+      message: "Bulk assignment completed",
+      successIds,
+      failed,
+      summary: buildBulkSummary(requestedCount, successIds.length, failed.length),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/bulk/delete", authorizeRoles("CEO", "Manager"), authorizeCapability("tasks:update"), async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const { taskIds } = req.body;
+    const { validIds, invalidIds } = parseTaskIdList(taskIds);
+    const requestedCount = Array.isArray(taskIds) ? taskIds.length : 0;
+    if (validIds.length === 0 && invalidIds.length === 0) {
+      return res.status(400).json({ message: "taskIds must be a non-empty array" });
+    }
+
+    const failed = invalidIds.map((taskId) => ({ taskId, reason: "Invalid task id" }));
+    const eligibleTasks = await Tasks.find(applyTaskScopeFilter(req, { _id: { $in: validIds }, companyId }));
+    const eligibleTaskIdSet = new Set(eligibleTasks.map((task) => String(task._id)));
+
+    for (const taskId of validIds.map((id) => String(id))) {
+      if (!eligibleTaskIdSet.has(taskId)) {
+        failed.push({ taskId, reason: "Task not found or outside your scope" });
+      }
+    }
+
+    const successIds = [];
+    const touchedProjectIds = new Set();
+
+    for (const task of eligibleTasks) {
+      await Tasks.deleteOne({ _id: task._id, companyId });
+      successIds.push(String(task._id));
+      touchedProjectIds.add(String(task.projectId));
+
+      await logActivity({
+        req,
+        action: "task.delete",
+        targetType: "task",
+        targetId: task._id,
+        teamId: task.teamId,
+        metadata: {
+          title: task.title,
+          bulk: true,
+        },
+      });
+    }
+
+    await Promise.all([...touchedProjectIds].map((projectId) => syncProjectTaskStats(projectId, companyId)));
+
+    return res.json({
+      message: "Bulk delete completed",
+      successIds,
+      failed,
+      summary: buildBulkSummary(requestedCount, successIds.length, failed.length),
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -289,6 +573,76 @@ router.get("/:id", async (req, res) => {
     }
 
     return res.json(task);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/:id/duplicate", authorizeRoles("CEO", "Manager"), authorizeCapability("tasks:create"), async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const sourceTask = await Tasks.findOne(applyTaskScopeFilter(req, { _id: req.params.id, companyId }));
+    if (!sourceTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    const project = await ensureCompanyProject(sourceTask.projectId, companyId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found in your company" });
+    }
+
+    if (sourceTask.teamId) {
+      const team = await ensureCompanyTeam(sourceTask.teamId, companyId);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found in your company" });
+      }
+
+      if (!isTeamAssignedToProject(project, sourceTask.teamId)) {
+        return res.status(400).json({ message: "Selected team is not assigned to the selected project" });
+      }
+
+      if (!isTeamInManagerScope(req, sourceTask.teamId)) {
+        return res.status(403).json({ message: "Cannot create tasks for teams outside your scope" });
+      }
+    }
+
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope === "team" && !sourceTask.teamId) {
+      return res.status(400).json({ message: "teamId is required for team-scoped manager task duplication" });
+    }
+
+    const duplicatedTask = await Tasks.create({
+      title: `${sourceTask.title} (Copy)`,
+      description: sourceTask.description,
+      status: sourceTask.status,
+      priority: sourceTask.priority,
+      dueDate: sourceTask.dueDate,
+      projectId: sourceTask.projectId,
+      teamId: sourceTask.teamId,
+      assignee: null,
+      companyId,
+      createdBy: req.user?.userId,
+    });
+
+    await syncProjectTaskStats(sourceTask.projectId, companyId);
+
+    await logActivity({
+      req,
+      action: "task.duplicate",
+      targetType: "task",
+      targetId: duplicatedTask._id,
+      teamId: duplicatedTask.teamId,
+      metadata: {
+        sourceTaskId: String(sourceTask._id),
+        title: duplicatedTask.title,
+      },
+    });
+
+    const populated = await getTaskById(duplicatedTask._id, companyId);
+    return res.status(201).json(populated);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
