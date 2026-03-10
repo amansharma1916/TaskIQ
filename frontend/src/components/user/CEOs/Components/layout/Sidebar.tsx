@@ -28,6 +28,8 @@ const Sidebar = ({
 	onSignOut,
 	onSwitchPanel,
 }: SidebarProps) => {
+	const roleSuffix = displayDesignation === 'CEO' ? 'Admin' : displayDesignation === 'Manager' ? 'Supervisor' : 'Employee'
+
 	return (
 		<aside className="ceo-sidebar">
 			<div className="ceo-logo-area">
@@ -94,7 +96,7 @@ const Sidebar = ({
 					<div>
 						<div className="ceo-user-name">{displayUserName}</div>
 						<div className="ceo-user-role">
-							{displayDesignation} | {displayDesignation === 'CEO' ? 'Admin' : 'Employee'}
+							{displayDesignation} | {roleSuffix}
 						</div>
 					</div>
 				</button>

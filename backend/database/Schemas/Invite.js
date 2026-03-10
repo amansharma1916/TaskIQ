@@ -21,6 +21,19 @@ const InviteSchema = new mongoose.Schema(
       default: "Employee",
     },
 
+    scopeType: {
+      type: String,
+      enum: ["team", "company"],
+      default: "team",
+    },
+
+    scopeTeamIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Teams",
+      },
+    ],
+
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",

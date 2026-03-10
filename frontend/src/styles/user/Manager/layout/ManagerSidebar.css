@@ -1,0 +1,115 @@
+.manager-sidebar {
+	border-right: 1px solid var(--mgr-border);
+	background: rgba(13, 18, 40, 0.88);
+	backdrop-filter: blur(18px);
+	color: var(--mgr-white);
+	padding: 18px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.manager-sidebar-logo {
+	display: grid;
+	gap: 6px;
+}
+
+.manager-logo {
+	font-family: 'Space Grotesk', sans-serif;
+	font-size: 1.35rem;
+	font-weight: 700;
+	color: var(--mgr-white);
+}
+
+.manager-org {
+	font-size: 0.82rem;
+	color: var(--mgr-muted);
+}
+
+.manager-role-badge {
+	font-size: 0.75rem;
+	font-weight: 600;
+	width: fit-content;
+	padding: 4px 8px;
+	border-radius: 999px;
+	background: rgba(0, 212, 255, 0.12);
+	border: 1px solid rgba(0, 212, 255, 0.28);
+	color: var(--mgr-cyan);
+}
+
+.manager-sidebar-nav {
+	display: grid;
+	gap: 8px;
+}
+
+.manager-nav-item {
+	text-align: left;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--mgr-muted);
+	cursor: pointer;
+	font-size: 0.86rem;
+	transition: color 0.2s, background 0.2s;
+}
+
+.manager-nav-item:hover {
+	color: var(--mgr-white);
+	background: var(--mgr-glass);
+}
+
+.manager-nav-item.active {
+	color: var(--mgr-cyan);
+	background: rgba(0, 212, 255, 0.12);
+	border-color: rgba(0, 212, 255, 0.25);
+}
+
+.manager-user-card {
+	margin-top: auto;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px;
+	border-radius: 10px;
+	border: 1px solid var(--mgr-border);
+	background: var(--mgr-glass);
+}
+
+.manager-avatar {
+	width: 38px;
+	height: 38px;
+	border-radius: 50%;
+	border: 1px solid rgba(0, 212, 255, 0.26);
+	background: rgba(0, 212, 255, 0.14);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-family: 'Space Grotesk', sans-serif;
+	font-weight: 700;
+}
+
+.manager-user-name {
+	font-size: 0.92rem;
+	color: var(--mgr-white);
+}
+
+.manager-user-role {
+	font-size: 0.78rem;
+	color: var(--mgr-cyan);
+}
+
+.manager-signout-btn {
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid var(--mgr-border);
+	background: transparent;
+	color: var(--mgr-white);
+	cursor: pointer;
+	transition: border-color 0.2s, background 0.2s;
+}
+
+.manager-signout-btn:hover {
+	border-color: rgba(248, 113, 113, 0.48);
+	background: rgba(248, 113, 113, 0.12);
+}

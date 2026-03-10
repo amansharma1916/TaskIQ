@@ -31,6 +31,12 @@ const toQuery = (params: TaskListParams = {}): string => {
 	if (params.priority) {
 		query.set('priority', params.priority)
 	}
+	if (params.assigneeMemberId) {
+		query.set('assigneeMemberId', params.assigneeMemberId)
+	}
+	if (params.createdBy) {
+		query.set('createdBy', params.createdBy)
+	}
 	if (params.q?.trim()) {
 		query.set('q', params.q.trim())
 	}
@@ -101,6 +107,22 @@ export const updateTaskStatus = async (taskId: string, status: ApiTaskStatus): P
 
 	if (!response.ok) {
 		await throwFromResponse(response, 'Failed to update task status')
+	}
+
+	return (await response.json()) as ApiTask
+}
+
+export const assignTask = async (taskId: string, assigneeMemberId: string | null): Promise<ApiTask> => {
+	const response = await authorizedFetch(`/api/tasks/${taskId}/assign`, {
+		method: 'PATCH',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({ assigneeMemberId }),
+	})
+
+	if (!response.ok) {
+		await throwFromResponse(response, 'Failed to assign task')
 	}
 
 	return (await response.json()) as ApiTask

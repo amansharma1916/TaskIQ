@@ -1,15 +1,31 @@
 import express from "express";
 import crypto from "crypto";
+import mongoose from "mongoose";
 import Invite from "../database/Schemas/Invite.js";
 import Company from "../database/Schemas/Company.js";
+import Teams from "../database/Schemas/Teams.js";
 import sendInviteEmail from "../utilities/sendInviteEmail.js";
+import { roleResolution } from "../middleware/roleResolution.js";
+import { authorizeCapability } from "../middleware/authorizeCapability.js";
+import { getManagerScopeTeamIds, isCeo } from "../middleware/scopeFilters.js";
+import logActivity from "../utilities/logActivity.js";
 import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/invite", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
+const parseTeamIds = (teamIds) => {
+  if (!Array.isArray(teamIds)) {
+    return [];
+  }
+
+  return teamIds
+    .filter((value) => typeof value === "string" && mongoose.Types.ObjectId.isValid(value))
+    .map((value) => new mongoose.Types.ObjectId(value));
+};
+
+router.post("/invite", authenticateJWT, roleResolution, authorizeRoles("CEO", "Manager"), authorizeCapability("invite:create"), async (req, res) => {
   try {
-    const { email, name, role } = req.body;
+    const { email, name, role, scopeType, scopeTeamIds } = req.body;
     const companyId = req.user?.companyId;
 
     if (!email || !name) {
@@ -22,6 +38,52 @@ router.post("/invite", authenticateJWT, authorizeRoles("CEO"), async (req, res) 
 
     if (role && !["Manager", "Employee"].includes(role)) {
       return res.status(400).json({ message: "role must be Manager or Employee" });
+    }
+
+    const inviteRole = role ?? "Employee";
+    const requestedScopeType = scopeType === "company" ? "company" : "team";
+
+    let resolvedScopeType = requestedScopeType;
+    let resolvedScopeTeamIds = parseTeamIds(scopeTeamIds);
+
+    if (!isCeo(req)) {
+      resolvedScopeType = "team";
+
+      const managerTeamIds = getManagerScopeTeamIds(req);
+      if (req.authz?.managerScope === "company") {
+        resolvedScopeTeamIds = resolvedScopeTeamIds.length > 0 ? resolvedScopeTeamIds : [];
+      } else {
+        resolvedScopeTeamIds = managerTeamIds;
+      }
+
+      if (resolvedScopeTeamIds.length === 0) {
+        return res.status(400).json({
+          message: "Manager invites are team-scoped and require at least one target team",
+        });
+      }
+
+      if (req.authz?.managerScope !== "company") {
+        const scopedTeamIdSet = new Set(managerTeamIds.map((teamId) => String(teamId)));
+        const hasOutOfScopeTeam = resolvedScopeTeamIds.some((teamId) => !scopedTeamIdSet.has(String(teamId)));
+        if (hasOutOfScopeTeam) {
+          return res.status(403).json({ message: "Cannot invite for teams outside your scope" });
+        }
+      }
+    }
+
+    if (isCeo(req) && resolvedScopeType === "company") {
+      resolvedScopeTeamIds = [];
+    }
+
+    if (resolvedScopeType === "team" && resolvedScopeTeamIds.length === 0) {
+      return res.status(400).json({ message: "scopeTeamIds must include at least one valid team id for team scoped invite" });
+    }
+
+    if (resolvedScopeTeamIds.length > 0) {
+      const teamsCount = await Teams.countDocuments({ _id: { $in: resolvedScopeTeamIds }, companyId });
+      if (teamsCount !== resolvedScopeTeamIds.length) {
+        return res.status(400).json({ message: "One or more scope teams do not belong to this company" });
+      }
     }
 
     const company = await Company.findById(companyId);
@@ -46,7 +108,9 @@ router.post("/invite", authenticateJWT, authorizeRoles("CEO"), async (req, res) 
     const invite = await Invite.create({
       email: normalizedEmail,
       name,
-      role: role ?? "Employee",
+      role: inviteRole,
+      scopeType: resolvedScopeType,
+      scopeTeamIds: resolvedScopeTeamIds,
       companyId,
       token,
     });
@@ -60,6 +124,19 @@ router.post("/invite", authenticateJWT, authorizeRoles("CEO"), async (req, res) 
       await Invite.findByIdAndDelete(invite._id).catch(() => null);
       throw emailError;
     }
+
+    await logActivity({
+      req,
+      action: "invite.create",
+      targetType: "invite",
+      targetId: invite._id,
+      teamId: resolvedScopeType === "team" ? resolvedScopeTeamIds[0] : null,
+      metadata: {
+        inviteRole,
+        scopeType: resolvedScopeType,
+        scopeTeamIds: resolvedScopeTeamIds.map((teamId) => String(teamId)),
+      },
+    });
 
     return res.json({ message: "Invite sent" });
   } catch (error) {
@@ -79,6 +156,8 @@ router.get("/validate/:token", async (req, res) => {
       email: invite.email,
       name: invite.name,
       role: invite.role,
+      scopeType: invite.scopeType,
+      scopeTeamIds: invite.scopeTeamIds ?? [],
       companyId: invite.companyId?._id ?? null,
       companyName: invite.companyId?.companyName ?? null,
     });

@@ -1,0 +1,33 @@
+.manager-topbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 24px;
+	height: 64px;
+	border: 1px solid var(--mgr-border);
+	border-radius: 12px;
+	background: rgba(8, 12, 26, 0.75);
+	backdrop-filter: blur(14px);
+}
+
+.manager-topbar h1 {
+	margin: 0;
+	font-family: 'Space Grotesk', sans-serif;
+	font-size: 1.08rem;
+	color: var(--mgr-white);
+}
+
+.manager-refresh-btn {
+	padding: 8px 12px;
+	border-radius: 10px;
+	border: 1px solid rgba(0, 212, 255, 0.34);
+	background: rgba(0, 212, 255, 0.12);
+	color: var(--mgr-cyan);
+	cursor: pointer;
+	transition: transform 0.2s, background 0.2s;
+}
+
+.manager-refresh-btn:hover {
+	transform: translateY(-1px);
+	background: rgba(0, 212, 255, 0.2);
+}

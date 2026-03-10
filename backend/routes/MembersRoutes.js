@@ -1,11 +1,36 @@
 import express from "express";
 import Members from "../database/Schemas/Members.js";
 import Teams from "../database/Schemas/Teams.js";
+import Users from "../database/Schemas/Users.js";
+import { roleResolution } from "../middleware/roleResolution.js";
+import { getManagerScopeTeamIds } from "../middleware/scopeFilters.js";
+import logActivity from "../utilities/logActivity.js";
 import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.use(authenticateJWT);
+router.use(roleResolution);
+
+const applyMemberScopeFilter = (req, companyId) => {
+  const role = req.authz?.effectiveRole;
+  const scopedEnforcement = req.authz?.scopedEnforcement;
+
+  if (!scopedEnforcement || role === "CEO") {
+    return { companyId };
+  }
+
+  if (role === "Manager") {
+    if (req.authz?.managerScope === "company") {
+      return { companyId };
+    }
+
+    const teamIds = getManagerScopeTeamIds(req);
+    return { companyId, memberTeam: { $in: teamIds.length > 0 ? teamIds : [] } };
+  }
+
+  return { companyId, userId: req.user?.userId };
+};
 
 const requireCompanyScope = (req, res) => {
   const companyId = req.user?.companyId;
@@ -45,6 +70,8 @@ router.post("/add", authorizeRoles("CEO", "Manager"), async (req, res) => {
     const member = await Members.create({
       memberName,
       memberRole,
+      scopeType: memberRole === "Manager" ? "team" : "team",
+      scopeTeamIds: teamId ? [teamId] : [],
       memberTeam: teamId || null,
       userId: userId || null,
       companyId: resolvedCompanyId,
@@ -56,6 +83,17 @@ router.post("/add", authorizeRoles("CEO", "Manager"), async (req, res) => {
         $inc: { totalMembers: 1 }
       });
     }
+
+    await logActivity({
+      req,
+      action: "member.create",
+      targetType: "member",
+      targetId: member._id,
+      teamId: member.memberTeam,
+      metadata: {
+        memberRole: member.memberRole,
+      },
+    });
 
     res.status(201).json(member);
 
@@ -71,7 +109,7 @@ router.get("/", async (req, res) => {
       return;
     }
 
-    const members = await Members.find({ companyId }).populate("memberTeam");
+    const members = await Members.find(applyMemberScopeFilter(req, companyId)).populate("memberTeam");
 
     res.json(members);
 
@@ -104,10 +142,106 @@ router.delete("/:id", authorizeRoles("CEO"), async (req, res) => {
       });
     }
 
+    await logActivity({
+      req,
+      action: "member.delete",
+      targetType: "member",
+      targetId: member._id,
+      teamId: member.memberTeam,
+      metadata: {
+        memberRole: member.memberRole,
+      },
+    });
+
     res.json({ message: "Member removed" });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch("/:id/promote", authorizeRoles("CEO"), async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const member = await Members.findOne({ _id: req.params.id, companyId });
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    member.memberRole = "Manager";
+    if (member.memberTeam) {
+      member.scopeTeamIds = [member.memberTeam];
+    }
+    await member.save();
+
+    if (member.userId) {
+      await Users.findByIdAndUpdate(member.userId, {
+        role: "Manager",
+        managerScope: "team",
+        managerTeamIds: member.memberTeam ? [member.memberTeam] : [],
+      });
+    }
+
+    await logActivity({
+      req,
+      action: "member.promote",
+      targetType: "member",
+      targetId: member._id,
+      teamId: member.memberTeam,
+      metadata: {
+        newRole: "Manager",
+      },
+    });
+
+    return res.json(member);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch("/:id/demote", authorizeRoles("CEO"), async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const member = await Members.findOne({ _id: req.params.id, companyId });
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    member.memberRole = "Employee";
+    member.scopeType = "team";
+    member.scopeTeamIds = member.memberTeam ? [member.memberTeam] : [];
+    await member.save();
+
+    if (member.userId) {
+      await Users.findByIdAndUpdate(member.userId, {
+        role: "Employee",
+        managerScope: "team",
+        managerTeamIds: [],
+      });
+    }
+
+    await logActivity({
+      req,
+      action: "member.demote",
+      targetType: "member",
+      targetId: member._id,
+      teamId: member.memberTeam,
+      metadata: {
+        newRole: "Employee",
+      },
+    });
+
+    return res.json(member);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 });
 

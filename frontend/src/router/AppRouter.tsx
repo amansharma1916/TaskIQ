@@ -5,8 +5,9 @@ import LoginPage from '../components/public/LoginPage'
 import InviteRegisterPage from '../components/public/InviteRegisterPage'
 import Home from '../components/private/Home'
 import ProjectDetails from '../components/user/CEOs/ProjectDetails'
+import Dashboard_CEO from '../components/user/CEOs/Dashboard_CEO'
+import Dashboard_Manager from '../components/user/Manager/Dashboard_Manager'
 import ProtectRoute from '../protection/ProtectRoute'
-import RoleRender from '../protection/RoleRender'
 
 const router = createBrowserRouter([
   {
@@ -36,8 +37,16 @@ const router = createBrowserRouter([
   {
     path: '/ceo/dashboard',
     element: (
-      <ProtectRoute>
-        <RoleRender />
+      <ProtectRoute requiredRoles={['CEO']}>
+        <Dashboard_CEO />
+      </ProtectRoute>
+    ),
+  },
+  {
+    path: '/manager/dashboard',
+    element: (
+      <ProtectRoute requiredRoles={['Manager']}>
+        <Dashboard_Manager />
       </ProtectRoute>
     ),
   },

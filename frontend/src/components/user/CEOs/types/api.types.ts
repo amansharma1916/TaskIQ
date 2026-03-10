@@ -92,6 +92,8 @@ export type TaskListParams = {
 	teamId?: string
 	status?: ApiTaskStatus
 	priority?: ApiTaskPriority
+	assigneeMemberId?: string
+	createdBy?: string
 	q?: string
 }
 
