@@ -54,6 +54,7 @@ export type ManagerMemberOption = {
 	id: string
 	name: string
 	teamId: string | null
+	role?: string
 }
 
 export type ManagerTeamCard = {

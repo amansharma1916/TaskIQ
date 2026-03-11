@@ -20,6 +20,7 @@ import {
   updateTaskStatus,
 } from '../../../services/tasks'
 import { assignTeams, createProject, revokeTeams, updateProject } from '../../../services/projects'
+import { addTeamMember, removeTeamMember } from '../../../services/teams'
 import type { ApiProjectStatus, ApiTaskStatus } from '../CEOs/types/api.types'
 import type { ManagerPanelId, ManagerTaskQuery } from './types/manager.types'
 
@@ -44,6 +45,8 @@ const Dashboard_Manager = () => {
   const [projectActionError, setProjectActionError] = useState('')
   const [isTaskMutating, setIsTaskMutating] = useState(false)
   const [taskActionError, setTaskActionError] = useState('')
+  const [isTeamMutating, setIsTeamMutating] = useState(false)
+  const [teamActionError, setTeamActionError] = useState('')
   const {
     projects,
     tasks,
@@ -233,6 +236,34 @@ const Dashboard_Manager = () => {
     setTaskQuery(updater)
   }
 
+  const handleAddTeamMember = async (teamId: string, memberId: string) => {
+    setTeamActionError('')
+    setIsTeamMutating(true)
+
+    try {
+      await addTeamMember(teamId, memberId)
+      await reloadAll()
+    } catch (error) {
+      setTeamActionError(error instanceof Error ? error.message : 'Failed to add member to team')
+    } finally {
+      setIsTeamMutating(false)
+    }
+  }
+
+  const handleRemoveTeamMember = async (teamId: string, memberId: string) => {
+    setTeamActionError('')
+    setIsTeamMutating(true)
+
+    try {
+      await removeTeamMember(teamId, memberId)
+      await reloadAll()
+    } catch (error) {
+      setTeamActionError(error instanceof Error ? error.message : 'Failed to revoke member from team')
+    } finally {
+      setIsTeamMutating(false)
+    }
+  }
+
   return (
     <div className="ceo-dashboard-root">
       <ManagerSidebar
@@ -288,7 +319,19 @@ const Dashboard_Manager = () => {
             assignedToMe={myAssignedTasks}
             teamBacklog={teamBacklogTasks}
           />
-          <ManagerTeamsPanel isActive={activePanel === 'teams'} isLoading={state.isLoading} error={state.error} teams={teams} />
+          <ManagerTeamsPanel
+            isActive={activePanel === 'teams'}
+            isLoading={state.isLoading}
+            error={state.error}
+            actionError={teamActionError}
+            isMutating={isTeamMutating}
+            teams={teams}
+            projects={projects}
+            tasks={tasks}
+            members={members}
+            onAddMember={(teamId, memberId) => void handleAddTeamMember(teamId, memberId)}
+            onRevokeMember={(teamId, memberId) => void handleRemoveTeamMember(teamId, memberId)}
+          />
           <ManagerActivityPanel isActive={activePanel === 'activity'} isLoading={state.isLoading} error={state.error} activity={activity} />
         </section>
       </main>

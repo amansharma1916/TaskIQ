@@ -136,6 +136,7 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 					id: member._id,
 					name: member.memberName,
 					teamId: member.memberTeam?._id ?? null,
+					role: member.memberRole,
 				}))
 			)
 
