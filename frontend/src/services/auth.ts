@@ -1,4 +1,7 @@
-export type UserRole = 'CEO' | 'Manager' | 'Employee' | string;
+import type { RoleId } from '../config/roles';
+import { getRoleDefaultRoute } from '../config/roles';
+
+export type UserRole = RoleId;
 
 export type AuthUser = {
   id?: string;
@@ -170,6 +173,10 @@ export const hasValidAccessToken = (): boolean => {
 };
 
 export const getAuthChangedEventName = (): string => AUTH_CHANGED_EVENT;
+
+export const getDashboardRouteForRole = (role?: UserRole): string => {
+  return getRoleDefaultRoute(role);
+};
 
 export const logoutSession = async (apiBase: string): Promise<void> => {
   try {

@@ -1,4 +1,5 @@
 import Dashboard_CEO from "../components/user/CEOs/Dashboard_CEO"
+import Dashboard_Manager from "../components/user/Manager/Dashboard_Manager"
 import { getAuthUser } from "../services/auth"
 
 function RoleRender(){
@@ -8,7 +9,7 @@ function RoleRender(){
         case 'CEO':
             return <Dashboard_CEO />
         case 'Manager':
-            return <p>Manager</p>
+            return <Dashboard_Manager />
         case 'Employee':
             return <p>Employee</p>
         default:

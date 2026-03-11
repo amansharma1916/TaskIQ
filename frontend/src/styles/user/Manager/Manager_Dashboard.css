@@ -1,0 +1,50 @@
+.manager-assignments-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.manager-task-controls {
+	align-items: flex-end;
+	gap: 10px;
+}
+
+.manager-task-controls label {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 0.72rem;
+	color: var(--muted);
+}
+
+.manager-task-select {
+	border: 1px solid var(--border);
+	background: var(--bg3);
+	color: var(--white);
+	border-radius: 8px;
+	padding: 8px 10px;
+	font-family: inherit;
+	font-size: 0.82rem;
+	min-width: 160px;
+}
+
+.manager-task-select:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+	.manager-assignments-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.manager-task-controls {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.manager-task-select {
+		min-width: 0;
+		width: 100%;
+	}
+}

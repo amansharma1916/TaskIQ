@@ -1,0 +1,310 @@
+.manager-project-filters {
+	display: grid;
+	grid-template-columns: 1.4fr repeat(3, minmax(150px, 0.5fr));
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.manager-project-filters label,
+.manager-project-modal .ceo-field {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--muted);
+}
+
+.manager-project-filters input,
+.manager-project-filters select,
+.manager-project-modal input,
+.manager-project-modal select,
+.manager-project-modal textarea {
+	width: 100%;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	background: linear-gradient(180deg, rgba(15, 24, 54, 0.95), rgba(10, 16, 38, 0.95));
+	border-radius: 10px;
+	padding: 10px 12px;
+	color: var(--white);
+	font-family: inherit;
+	font-size: 0.84rem;
+	outline: none;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+}
+
+.manager-project-modal textarea {
+	resize: vertical;
+	min-height: 92px;
+	line-height: 1.45;
+}
+
+.manager-project-filters input::placeholder,
+.manager-project-modal input::placeholder,
+.manager-project-modal textarea::placeholder {
+	color: rgba(240, 244, 255, 0.45);
+}
+
+.manager-project-filters input:focus,
+.manager-project-filters select:focus,
+.manager-project-modal input:focus,
+.manager-project-modal select:focus,
+.manager-project-modal textarea:focus {
+	border-color: rgba(0, 212, 255, 0.68);
+	box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.2);
+	transform: translateY(-1px);
+}
+
+.manager-project-filters select,
+.manager-project-modal select {
+	appearance: none;
+	background-image: linear-gradient(45deg, transparent 50%, rgba(240, 244, 255, 0.78) 50%),
+		linear-gradient(135deg, rgba(240, 244, 255, 0.78) 50%, transparent 50%);
+	background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+	background-size: 6px 6px, 6px 6px;
+	background-repeat: no-repeat;
+	padding-right: 32px;
+}
+
+.manager-project-filters select option,
+.manager-project-modal select option {
+	background: #0d1734;
+	color: #f3f7ff;
+}
+
+.manager-filter-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.manager-filter-chip {
+	border: 1px solid rgba(0, 212, 255, 0.35);
+	background: rgba(0, 212, 255, 0.12);
+	color: var(--cyan);
+	font-family: inherit;
+	font-size: 0.75rem;
+	padding: 6px 10px;
+	border-radius: 999px;
+	cursor: pointer;
+	transition: transform 0.12s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.manager-filter-chip:hover {
+	border-color: rgba(0, 212, 255, 0.58);
+	background: rgba(0, 212, 255, 0.2);
+	transform: translateY(-1px);
+}
+
+.manager-state-empty {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px;
+	border: 1px dashed var(--border);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.manager-state-empty p {
+	margin: 0;
+}
+
+.manager-due-neutral {
+	color: var(--muted);
+}
+
+.manager-due-good {
+	color: var(--green);
+	border-color: rgba(74, 222, 128, 0.32) !important;
+}
+
+.manager-due-soon {
+	color: var(--yellow);
+	border-color: rgba(251, 191, 36, 0.32) !important;
+}
+
+.manager-due-overdue {
+	color: var(--red);
+	border-color: rgba(248, 113, 113, 0.4) !important;
+	background: rgba(248, 113, 113, 0.08) !important;
+}
+
+.manager-project-modal-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: rgba(0, 0, 0, 0.7);
+	backdrop-filter: blur(1px);
+	z-index: 70;
+}
+
+.manager-project-modal {
+	width: min(760px, 92vw);
+	max-height: calc(100vh - 48px);
+	overflow-y: auto;
+	box-shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
+}
+
+.manager-project-modal .ceo-btn-outline,
+.manager-project-modal .ceo-btn-primary,
+.manager-project-modal .ceo-btn-danger,
+.ceo-task-right .ceo-btn-outline,
+.ceo-task-right .ceo-btn-sm,
+.ceo-task-right .ceo-btn-danger {
+	min-height: 34px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.manager-project-modal .ceo-btn-outline:hover,
+.manager-project-modal .ceo-btn-primary:hover,
+.manager-project-modal .ceo-btn-danger:hover,
+.ceo-task-right .ceo-btn-outline:hover,
+.ceo-task-right .ceo-btn-sm:hover,
+.ceo-task-right .ceo-btn-danger:hover {
+	transform: translateY(-1px);
+}
+
+.manager-project-modal .ceo-btn-outline:disabled,
+.manager-project-modal .ceo-btn-primary:disabled,
+.manager-project-modal .ceo-btn-danger:disabled,
+.ceo-task-right .ceo-btn-outline:disabled,
+.ceo-task-right .ceo-btn-sm:disabled,
+.ceo-task-right .ceo-btn-danger:disabled {
+	opacity: 0.58;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+}
+
+.manager-project-modal h2 {
+	margin: 0 0 10px;
+}
+
+.manager-project-modal p {
+	margin-top: 0;
+	color: var(--muted);
+}
+
+.manager-project-modal-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.manager-project-team-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	max-height: 320px;
+	overflow-y: auto;
+	padding-right: 2px;
+}
+
+.manager-project-confirm-modal {
+	max-width: 560px;
+}
+
+.manager-project-modal-empty {
+	grid-column: 1 / -1;
+	padding: 12px;
+	border: 1px dashed var(--border);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.02);
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+
+.ptm-team-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 9px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 10px;
+	background: rgba(255, 255, 255, 0.02);
+	cursor: pointer;
+	transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.ptm-team-card:hover {
+	border-color: rgba(0, 212, 255, 0.46);
+	background: rgba(0, 212, 255, 0.08);
+}
+
+.ptm-team-card.selected {
+	border-color: rgba(0, 212, 255, 0.62);
+	background: rgba(0, 212, 255, 0.14);
+}
+
+.ptm-team-card input {
+	appearance: none;
+	margin-top: 1px;
+	width: 16px;
+	height: 16px;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.04);
+	position: relative;
+	cursor: pointer;
+}
+
+.ptm-team-card input:checked {
+	border-color: rgba(0, 212, 255, 0.9);
+	background: rgba(0, 212, 255, 0.9);
+}
+
+.ptm-team-card input:checked::after {
+	content: '';
+	position: absolute;
+	left: 4px;
+	top: 1px;
+	width: 4px;
+	height: 8px;
+	border: solid rgba(8, 14, 36, 1);
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+
+.ptm-team-card-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ptm-team-card-text span {
+	font-size: 0.84rem;
+	font-weight: 600;
+	color: var(--white);
+}
+
+.ptm-team-card-text small {
+	font-size: 0.72rem;
+	color: var(--muted);
+}
+
+@media (max-width: 1024px) {
+	.manager-project-filters,
+	.manager-project-modal-grid,
+	.manager-project-team-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.manager-state-empty {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}
+
+@media (max-width: 720px) {
+	.manager-project-modal-overlay {
+		padding: 12px;
+	}
+}

@@ -17,6 +17,8 @@ const buildSafeProfile = (user) => ({
 	name: user.name,
 	workEmail: user.workEmail,
 	role: user.role,
+	managerScope: user.managerScope ?? "company",
+	managerTeamIds: Array.isArray(user.managerTeamIds) ? user.managerTeamIds.map((teamId) => String(teamId)) : [],
 	companyId: user.companyId ? String(user.companyId) : null,
 });
 
@@ -65,6 +67,8 @@ router.post("/register", async (req, res) => {
 			workEmail,
 			password,
 			role: "CEO",
+			managerScope: "company",
+			managerTeamIds: [],
 		});
 		createdUserId = createdUser._id;
 
@@ -167,12 +171,17 @@ router.post("/register-with-invite", async (req, res) => {
 			password,
 			role: invite.role,
 			companyId: invite.companyId,
+			managerScope: invite.role === "Manager" ? invite.scopeType ?? "team" : "team",
+			managerTeamIds: invite.role === "Manager" ? invite.scopeTeamIds ?? [] : [],
 		});
 		createdUserId = user._id;
 
 		const member = await Members.create({
 			memberName: name,
 			memberRole: invite.role,
+			scopeType: invite.scopeType ?? "team",
+			scopeTeamIds: invite.scopeTeamIds ?? [],
+			memberTeam: invite.scopeTeamIds?.[0] ?? null,
 			userId: user._id,
 			companyId: invite.companyId,
 		});

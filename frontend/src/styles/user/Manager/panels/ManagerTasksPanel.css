@@ -1,0 +1,238 @@
+.manager-panel .manager-list-item {
+	border-left: 4px solid var(--mgr-yellow);
+}
+
+.manager-task-panel .manager-task-toolbar {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+	gap: 0.75rem;
+	margin-bottom: 1rem;
+	padding: 0.9rem;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: 12px;
+	background: rgba(17, 24, 48, 0.58);
+}
+
+.manager-task-panel .manager-task-toolbar label {
+	display: grid;
+	gap: 0.35rem;
+	font-size: 0.82rem;
+	color: var(--muted);
+}
+
+.manager-task-panel .manager-task-input,
+.manager-task-panel .manager-task-select {
+	width: 100%;
+	border: 1px solid var(--border) !important;
+	border-radius: 0.5rem;
+	padding: 0.55rem 0.7rem;
+	background: var(--bg3) !important;
+	color: var(--white) !important;
+	font: inherit;
+	line-height: 1.2;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.manager-task-panel .manager-task-input::placeholder {
+	color: rgba(240, 244, 255, 0.5);
+}
+
+.manager-task-panel .manager-task-input:focus,
+.manager-task-panel .manager-task-select:focus,
+.manager-task-panel .manager-task-textarea:focus {
+	outline: none;
+	border-color: rgba(0, 212, 255, 0.75) !important;
+	box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.18);
+}
+
+.manager-task-panel .manager-task-select {
+	cursor: pointer;
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background-image: linear-gradient(45deg, transparent 50%, #5e6d84 50%), linear-gradient(135deg, #5e6d84 50%, transparent 50%);
+	background-position: calc(100% - 16px) calc(50% + 1px), calc(100% - 11px) calc(50% + 1px);
+	background-size: 5px 5px, 5px 5px;
+	background-repeat: no-repeat;
+	padding-right: 2rem;
+	border-color: var(--border) !important;
+	background-color: var(--bg3) !important;
+	color: var(--white) !important;
+}
+
+.manager-task-panel .manager-task-select::-ms-expand {
+	display: none;
+}
+
+.manager-task-panel .manager-task-select option {
+	background: #111830;
+	color: #f0f4ff;
+}
+
+.manager-task-panel .manager-task-textarea {
+	width: 100%;
+	border: 1px solid var(--border);
+	border-radius: 0.5rem;
+	padding: 0.6rem 0.75rem;
+	min-height: 120px;
+	resize: vertical;
+	background: var(--bg3);
+	color: var(--white);
+	font: inherit;
+}
+
+.manager-task-panel .ceo-modal-body .manager-task-textarea {
+	border-color: var(--border) !important;
+	background: var(--bg3) !important;
+	color: var(--white) !important;
+	line-height: 1.4;
+}
+
+.manager-task-panel .ceo-modal-body .manager-task-textarea::placeholder {
+	color: rgba(240, 244, 255, 0.48);
+}
+
+.manager-task-panel .manager-task-pagination {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 1rem;
+	margin-top: 1rem;
+	padding-top: 0.9rem;
+	border-top: 1px solid #e4eaf2;
+	flex-wrap: wrap;
+}
+
+.manager-task-panel .manager-task-page-meta {
+	display: flex;
+	gap: 0.8rem;
+	font-size: 0.85rem;
+	color: #5c6778;
+}
+
+.manager-task-panel .manager-task-page-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	flex-wrap: wrap;
+}
+
+.manager-task-panel .manager-task-page-controls label {
+	display: flex;
+	align-items: center;
+	gap: 0.45rem;
+	font-size: 0.82rem;
+	color: #5c6778;
+}
+
+.manager-task-panel .manager-task-toolbar-actions {
+	display: flex;
+	align-items: flex-end;
+	gap: 0.6rem;
+	justify-content: flex-end;
+}
+
+.manager-task-panel .manager-filter-btn {
+	height: 38px;
+	border-radius: 0.55rem;
+	padding: 0 0.9rem;
+	border: 1px solid rgba(0, 212, 255, 0.28);
+	background: rgba(0, 212, 255, 0.14);
+	color: var(--cyan);
+	font-size: 0.8rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.manager-task-panel .manager-filter-btn:hover {
+	background: rgba(0, 212, 255, 0.22);
+	border-color: rgba(0, 212, 255, 0.5);
+	transform: translateY(-1px);
+}
+
+.manager-task-panel .manager-filter-btn:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.manager-task-panel .manager-task-bulk-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+	flex-wrap: wrap;
+	padding: 0.65rem;
+	margin-bottom: 0.85rem;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.manager-task-panel .manager-task-bulk-checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	color: var(--white);
+}
+
+.manager-task-panel .manager-task-bulk-checkbox input[type='checkbox'],
+.manager-task-panel .manager-task-row-select input[type='checkbox'] {
+	width: 16px;
+	height: 16px;
+	accent-color: var(--cyan);
+	cursor: pointer;
+}
+
+.manager-task-panel .manager-task-bulk-label {
+	font-size: 0.78rem;
+	color: var(--muted);
+	padding: 0 0.3rem;
+}
+
+.manager-task-panel .manager-task-row-select {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding-right: 0.4rem;
+}
+
+.manager-task-controls .ceo-btn-danger,
+.manager-task-controls .ceo-btn-sm,
+.manager-task-page-controls .ceo-btn-ghost,
+.manager-task-page-controls .ceo-btn-primary {
+	border-radius: 0.55rem;
+	padding: 0.48rem 0.8rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.manager-task-controls .ceo-btn-danger:hover,
+.manager-task-controls .ceo-btn-sm:hover,
+.manager-task-page-controls .ceo-btn-ghost:hover,
+.manager-task-page-controls .ceo-btn-primary:hover {
+	transform: translateY(-1px);
+}
+
+.manager-task-controls .ceo-btn-danger:disabled,
+.manager-task-controls .ceo-btn-sm:disabled,
+.manager-task-page-controls .ceo-btn-ghost:disabled,
+.manager-task-page-controls .ceo-btn-primary:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+	transform: none;
+}
+
+@media (max-width: 900px) {
+	.manager-task-panel .manager-task-bulk-toolbar {
+		align-items: stretch;
+	}
+
+	.manager-task-panel .manager-task-bulk-toolbar .manager-task-select,
+	.manager-task-panel .manager-task-bulk-toolbar .manager-filter-btn,
+	.manager-task-panel .manager-task-bulk-toolbar .ceo-btn-danger {
+		width: 100%;
+	}
+}

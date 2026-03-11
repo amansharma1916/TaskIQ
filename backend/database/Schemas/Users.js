@@ -24,6 +24,17 @@ const UsersSchema = new mongoose.Schema(
       default: "CEO",
       trim: true,
     },
+    managerScope: {
+      type: String,
+      enum: ["company", "team"],
+      default: "company",
+    },
+    managerTeamIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Teams",
+      },
+    ],
     refreshTokenHash: {
       type: String,
       select: false,
@@ -39,6 +50,8 @@ const UsersSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+UsersSchema.index({ companyId: 1, role: 1 });
 
 attachPasswordHashing(UsersSchema);
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { saveAuthSession } from '../../../services/auth'
+import { getDashboardRouteForRole, saveAuthSession } from '../../../services/auth'
 
 const LoginForm = () => {
   const navigate = useNavigate()
@@ -60,10 +60,10 @@ const LoginForm = () => {
       setSuccessMessage('Login successful! Redirecting...')
       console.log('Login successful:', result)
 
-      saveAuthSession(result ?? {})
+      const session = saveAuthSession(result ?? {})
       
       setTimeout(() => {
-        navigate('/ceo/dashboard')
+        navigate(getDashboardRouteForRole(session.user.role))
       }, 1500)
       
     } catch (error: unknown) {

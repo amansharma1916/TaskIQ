@@ -2,11 +2,16 @@ import express from "express";
 import Teams from "../database/Schemas/Teams.js";
 import Members from "../database/Schemas/Members.js";
 import Projects from "../database/Schemas/Project.js";
+import { roleResolution } from "../middleware/roleResolution.js";
+import { authorizeCapability } from "../middleware/authorizeCapability.js";
+import { applyTeamScopeFilter, isTeamInManagerScope } from "../middleware/scopeFilters.js";
+import logActivity from "../utilities/logActivity.js";
 import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.use(authenticateJWT);
+router.use(roleResolution);
 
 const requireCompanyScope = (req, res) => {
   const companyId = req.user?.companyId;
@@ -17,7 +22,7 @@ const requireCompanyScope = (req, res) => {
   return companyId;
 };
 
-router.post("/create", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.post("/create", authorizeRoles("CEO", "Manager"), authorizeCapability("teams:create"), async (req, res) => {
   try {
     const { teamName, teamDescription, teamTags } = req.body;
     const companyId = requireCompanyScope(req, res);
@@ -29,11 +34,25 @@ router.post("/create", authorizeRoles("CEO", "Manager"), async (req, res) => {
       return res.status(400).json({ message: "teamName is required" });
     }
 
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope === "team") {
+      return res.status(403).json({ message: "Team-scoped managers cannot create new teams" });
+    }
+
     const team = await Teams.create({
       teamName,
       teamDescription,
       teamTags,
       companyId,
+    });
+
+    await logActivity({
+      req,
+      action: "team.create",
+      targetType: "team",
+      targetId: team._id,
+      metadata: {
+        teamName: team.teamName,
+      },
     });
 
     res.status(201).json(team);
@@ -50,7 +69,7 @@ router.get("/", async (req, res) => {
       return;
     }
 
-    const teams = await Teams.find({ companyId }).populate("teamMembers");
+    const teams = await Teams.find(applyTeamScopeFilter(req, { companyId })).populate("teamMembers");
 
     res.json(teams);
 
@@ -66,7 +85,7 @@ router.get("/:id", async (req, res) => {
       return;
     }
 
-    const team = await Teams.findOne({ _id: req.params.id, companyId })
+    const team = await Teams.findOne(applyTeamScopeFilter(req, { _id: req.params.id, companyId }))
       .populate("teamMembers")
       .populate("teamLead");
 
@@ -81,7 +100,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.delete("/:id", authorizeRoles("CEO"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
@@ -131,13 +150,23 @@ router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
     await Members.updateMany({ memberTeam: team._id }, { $set: { memberTeam: null } });
     await Teams.findByIdAndDelete(team._id);
 
+    await logActivity({
+      req,
+      action: "team.delete",
+      targetType: "team",
+      targetId: team._id,
+      metadata: {
+        teamName: team.teamName,
+      },
+    });
+
     return res.json({ message: "Team disbanded successfully" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 });
 
-router.post("/add-member", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.post("/add-member", authorizeRoles("CEO", "Manager"), authorizeCapability("teams:update"), async (req, res) => {
   try {
     const { memberId, teamId } = req.body;
     const companyId = requireCompanyScope(req, res);
@@ -166,6 +195,10 @@ router.post("/add-member", authorizeRoles("CEO", "Manager"), async (req, res) =>
 
     if (String(team.companyId) !== String(companyId)) {
       return res.status(403).json({ message: "Team not in this company" });
+    }
+
+    if (!isTeamInManagerScope(req, teamId)) {
+      return res.status(403).json({ message: "Cannot modify teams outside your scope" });
     }
 
     if (!member.companyId) {
@@ -199,13 +232,24 @@ router.post("/add-member", authorizeRoles("CEO", "Manager"), async (req, res) =>
     member.memberTeam = teamId;
     await member.save();
 
+    await logActivity({
+      req,
+      action: "team.member.add",
+      targetType: "team",
+      targetId: teamId,
+      teamId,
+      metadata: {
+        memberId: String(member._id),
+      },
+    });
+
     return res.json({ message: "Member added to team" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 });
 
-router.post("/remove-member", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.post("/remove-member", authorizeRoles("CEO", "Manager"), authorizeCapability("teams:update"), async (req, res) => {
   try {
     const { memberId, teamId } = req.body;
     const companyId = requireCompanyScope(req, res);
@@ -234,6 +278,10 @@ router.post("/remove-member", authorizeRoles("CEO", "Manager"), async (req, res)
 
     if (String(team.companyId) !== String(companyId)) {
       return res.status(403).json({ message: "Team not in this company" });
+    }
+
+    if (!isTeamInManagerScope(req, teamId)) {
+      return res.status(403).json({ message: "Cannot modify teams outside your scope" });
     }
 
     if (!member.companyId) {
@@ -257,13 +305,24 @@ router.post("/remove-member", authorizeRoles("CEO", "Manager"), async (req, res)
     member.memberTeam = null;
     await member.save();
 
+    await logActivity({
+      req,
+      action: "team.member.remove",
+      targetType: "team",
+      targetId: teamId,
+      teamId,
+      metadata: {
+        memberId: String(member._id),
+      },
+    });
+
     return res.json({ message: "Member removed from team" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 });
 
-router.patch("/set-lead", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.patch("/set-lead", authorizeRoles("CEO", "Manager"), authorizeCapability("teams:update"), async (req, res) => {
   try {
     const { memberId, teamId } = req.body;
     const companyId = requireCompanyScope(req, res);
@@ -294,6 +353,10 @@ router.patch("/set-lead", authorizeRoles("CEO", "Manager"), async (req, res) => 
       return res.status(403).json({ message: "Team not in this company" });
     }
 
+    if (!isTeamInManagerScope(req, teamId)) {
+      return res.status(403).json({ message: "Cannot modify teams outside your scope" });
+    }
+
     if (!member.companyId) {
       member.companyId = companyId;
       await member.save();
@@ -304,6 +367,17 @@ router.patch("/set-lead", authorizeRoles("CEO", "Manager"), async (req, res) => 
     }
 
     await Teams.findByIdAndUpdate(teamId, { teamLead: memberId });
+
+    await logActivity({
+      req,
+      action: "team.lead.set",
+      targetType: "team",
+      targetId: teamId,
+      teamId,
+      metadata: {
+        memberId: String(memberId),
+      },
+    });
 
     return res.json({ message: "Team lead set successfully" });
   } catch (error) {

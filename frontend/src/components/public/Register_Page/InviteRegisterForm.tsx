@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { saveAuthSession } from '../../../services/auth'
+import { getDashboardRouteForRole, saveAuthSession } from '../../../services/auth'
 
 interface InviteMeta {
   email: string
@@ -116,10 +116,10 @@ const InviteRegisterForm = () => {
         throw new Error(result?.message || `Failed to register: ${response.status}`)
       }
 
-      saveAuthSession(result ?? {})
+      const session = saveAuthSession(result ?? {})
       setSuccessMessage('Account created. Redirecting...')
       setTimeout(() => {
-        navigate('/ceo/dashboard')
+        navigate(getDashboardRouteForRole(session.user.role))
       }, 1200)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Invite registration failed. Please try again.'

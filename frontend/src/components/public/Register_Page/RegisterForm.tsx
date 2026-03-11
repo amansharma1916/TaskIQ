@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { saveAuthSession } from '../../../services/auth';
+import { getDashboardRouteForRole, saveAuthSession } from '../../../services/auth';
 
 const RegisterForm = () => {
   const navigate = useNavigate();
@@ -69,7 +69,7 @@ const RegisterForm = () => {
         throw new Error(result?.message || `Failed to register: ${response.status}`);
       }
 
-      saveAuthSession(result ?? {});
+      const session = saveAuthSession(result ?? {});
       setSuccessMessage('Registration successful. Redirecting...');
       setFormData({
         fullName: '',
@@ -80,7 +80,7 @@ const RegisterForm = () => {
       });
       console.log('Registration successful:', result);
       setTimeout(() => {
-        navigate('/ceo/dashboard');
+        navigate(getDashboardRouteForRole(session.user.role));
       }, 1200);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Registration failed. Please try again.';

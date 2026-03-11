@@ -2,11 +2,16 @@ import express from "express";
 import mongoose from "mongoose";
 import Projects from "../database/Schemas/Project.js";
 import Teams from "../database/Schemas/Teams.js";
+import { roleResolution } from "../middleware/roleResolution.js";
+import { authorizeCapability } from "../middleware/authorizeCapability.js";
+import { applyProjectScopeFilter, isCeo, isTeamInManagerScope } from "../middleware/scopeFilters.js";
+import logActivity from "../utilities/logActivity.js";
 import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router.use(authenticateJWT);
+router.use(roleResolution);
 
 const requireCompanyScope = (req, res) => {
   const companyId = req.user?.companyId;
@@ -36,7 +41,15 @@ const parseDateOrNull = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-router.post("/create", authorizeRoles("CEO", "Manager"), async (req, res) => {
+const managerCanTouchAllTeams = (req, teamIds) => {
+  if (isCeo(req) || !req.authz?.scopedEnforcement || req.authz?.managerScope === "company") {
+    return true;
+  }
+
+  return teamIds.every((teamId) => isTeamInManagerScope(req, teamId));
+};
+
+router.post("/create", authorizeRoles("CEO", "Manager"), authorizeCapability("projects:create"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
@@ -70,6 +83,10 @@ router.post("/create", authorizeRoles("CEO", "Manager"), async (req, res) => {
       }
     }
 
+    if (!managerCanTouchAllTeams(req, teamIds)) {
+      return res.status(403).json({ message: "Cannot assign project to teams outside your scope" });
+    }
+
     const project = await Projects.create({
       projectName: projectName.trim(),
       projectDescription,
@@ -85,6 +102,17 @@ router.post("/create", authorizeRoles("CEO", "Manager"), async (req, res) => {
 
     const populated = await Projects.findById(project._id).populate("assignedTeams", "teamName teamDescription");
 
+    await logActivity({
+      req,
+      action: "project.create",
+      targetType: "project",
+      targetId: project._id,
+      metadata: {
+        projectName: project.projectName,
+        assignedTeams: teamIds.map((teamId) => String(teamId)),
+      },
+    });
+
     return res.status(201).json(populated);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -98,7 +126,7 @@ router.get("/", async (req, res) => {
       return;
     }
 
-    const projects = await Projects.find({ companyId })
+    const projects = await Projects.find(applyProjectScopeFilter(req, { companyId }))
       .sort({ createdAt: -1 })
       .populate("assignedTeams", "teamName teamDescription");
 
@@ -115,7 +143,7 @@ router.get("/:id", async (req, res) => {
       return;
     }
 
-    const project = await Projects.findOne({ _id: req.params.id, companyId }).populate(
+    const project = await Projects.findOne(applyProjectScopeFilter(req, { _id: req.params.id, companyId })).populate(
       "assignedTeams",
       "teamName teamDescription totalMembers"
     );
@@ -130,7 +158,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.put("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.put("/:id", authorizeRoles("CEO", "Manager"), authorizeCapability("projects:update"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
@@ -186,9 +214,13 @@ router.put("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
       }
 
       updates.assignedTeams = teamIds;
+
+      if (!managerCanTouchAllTeams(req, teamIds)) {
+        return res.status(403).json({ message: "Cannot assign project to teams outside your scope" });
+      }
     }
 
-    const project = await Projects.findOneAndUpdate({ _id: req.params.id, companyId }, updates, {
+    const project = await Projects.findOneAndUpdate(applyProjectScopeFilter(req, { _id: req.params.id, companyId }), updates, {
       new: true,
       runValidators: true,
     }).populate("assignedTeams", "teamName teamDescription totalMembers");
@@ -197,13 +229,23 @@ router.put("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
+    await logActivity({
+      req,
+      action: "project.update",
+      targetType: "project",
+      targetId: project._id,
+      metadata: {
+        fields: Object.keys(updates),
+      },
+    });
+
     return res.json(project);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 });
 
-router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.delete("/:id", authorizeRoles("CEO"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
@@ -216,13 +258,23 @@ router.delete("/:id", authorizeRoles("CEO", "Manager"), async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
+    await logActivity({
+      req,
+      action: "project.delete",
+      targetType: "project",
+      targetId: deleted._id,
+      metadata: {
+        projectName: deleted.projectName,
+      },
+    });
+
     return res.json({ message: "Project discarded successfully" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 });
 
-router.post("/:id/assign-teams", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.post("/:id/assign-teams", authorizeRoles("CEO", "Manager"), authorizeCapability("projects:update"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
@@ -240,7 +292,11 @@ router.post("/:id/assign-teams", authorizeRoles("CEO", "Manager"), async (req, r
       return res.status(400).json({ message: "One or more teams do not belong to this company" });
     }
 
-    const projectBeforeUpdate = await Projects.findOne({ _id: req.params.id, companyId }).populate(
+    if (!managerCanTouchAllTeams(req, teamIds)) {
+      return res.status(403).json({ message: "Cannot assign teams outside your scope" });
+    }
+
+    const projectBeforeUpdate = await Projects.findOne(applyProjectScopeFilter(req, { _id: req.params.id, companyId })).populate(
       "assignedTeams",
       "teamName"
     );
@@ -270,7 +326,7 @@ router.post("/:id/assign-teams", authorizeRoles("CEO", "Manager"), async (req, r
     }
 
     const project = await Projects.findOneAndUpdate(
-      { _id: req.params.id, companyId },
+      applyProjectScopeFilter(req, { _id: req.params.id, companyId }),
       { $addToSet: { assignedTeams: { $each: teamIds } } },
       { new: true, runValidators: true }
     ).populate("assignedTeams", "teamName teamDescription totalMembers");
@@ -279,13 +335,23 @@ router.post("/:id/assign-teams", authorizeRoles("CEO", "Manager"), async (req, r
       return res.status(404).json({ message: "Project not found" });
     }
 
+    await logActivity({
+      req,
+      action: "project.assign_teams",
+      targetType: "project",
+      targetId: project._id,
+      metadata: {
+        teamIds: teamIds.map((teamId) => String(teamId)),
+      },
+    });
+
     return res.json(project);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
 });
 
-router.post("/:id/revoke-teams", authorizeRoles("CEO", "Manager"), async (req, res) => {
+router.post("/:id/revoke-teams", authorizeRoles("CEO", "Manager"), authorizeCapability("projects:update"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
@@ -298,8 +364,12 @@ router.post("/:id/revoke-teams", authorizeRoles("CEO", "Manager"), async (req, r
       return res.status(400).json({ message: "teamIds must contain at least one valid team id" });
     }
 
+    if (!managerCanTouchAllTeams(req, teamIds)) {
+      return res.status(403).json({ message: "Cannot revoke teams outside your scope" });
+    }
+
     const project = await Projects.findOneAndUpdate(
-      { _id: req.params.id, companyId },
+      applyProjectScopeFilter(req, { _id: req.params.id, companyId }),
       { $pull: { assignedTeams: { $in: teamIds } } },
       { new: true, runValidators: true }
     ).populate("assignedTeams", "teamName teamDescription totalMembers");
@@ -307,6 +377,16 @@ router.post("/:id/revoke-teams", authorizeRoles("CEO", "Manager"), async (req, r
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
+
+    await logActivity({
+      req,
+      action: "project.revoke_teams",
+      targetType: "project",
+      targetId: project._id,
+      metadata: {
+        teamIds: teamIds.map((teamId) => String(teamId)),
+      },
+    });
 
     return res.json(project);
   } catch (error) {
