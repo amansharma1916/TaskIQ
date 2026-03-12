@@ -8,6 +8,7 @@ export type TaskFormValue = {
 	dueDate: string
 	projectId: string
 	teamId: string
+	assigneeMemberId: string
 }
 
 type TaskModalProps = {
@@ -15,10 +16,11 @@ type TaskModalProps = {
 	onChange: (next: TaskFormValue) => void
 	projects: Array<{ id: string; name: string }>
 	teams: Array<{ id: string; name: string }>
+	members: Array<{ id: string; name: string }>
 	errorMessage?: string
 }
 
-const TaskModal = ({ value, onChange, projects, teams, errorMessage }: TaskModalProps) => {
+const TaskModal = ({ value, onChange, projects, teams, members, errorMessage }: TaskModalProps) => {
 	const setField = <K extends keyof TaskFormValue>(key: K, next: TaskFormValue[K]) => {
 		onChange({
 			...value,
@@ -96,9 +98,19 @@ const TaskModal = ({ value, onChange, projects, teams, errorMessage }: TaskModal
 					Due Date
 					<input type="date" value={value.dueDate} onChange={(event) => setField('dueDate', event.target.value)} />
 				</label>
-				<div />
+				<label>
+					Assignee
+					<select value={value.assigneeMemberId} onChange={(event) => setField('assigneeMemberId', event.target.value)}>
+						<option value="">Unassigned</option>
+						{members.map((member) => (
+							<option key={member.id} value={member.id}>
+								{member.name}
+							</option>
+						))}
+					</select>
+				</label>
 			</div>
-			<p className="ceo-member-role">Assignee model: all members in selected team are responsible for this task.</p>
+			<p className="ceo-member-role">Select a single assignee now, or leave unassigned to assign later.</p>
 		</>
 	)
 }

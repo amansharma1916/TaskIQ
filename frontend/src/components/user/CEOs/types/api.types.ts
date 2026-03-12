@@ -126,6 +126,7 @@ export type CreateTaskPayload = {
 	dueDate?: string | null
 	projectId: string
 	teamId?: string | null
+	assigneeMemberId?: string | null
 }
 
 export type UpdateTaskPayload = Partial<CreateTaskPayload>

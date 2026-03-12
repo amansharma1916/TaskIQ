@@ -126,10 +126,12 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 			])
 
 			const authUser = getAuthUser()
-			const currentMemberId = memberRows.find((member) => {
+			const currentMember = memberRows.find((member) => {
 				const memberUserId = typeof member.userId === 'string' ? member.userId : member.userId?._id
 				return memberUserId === authUser?.id
-			})?._id
+			})
+			const currentMemberId = currentMember?._id
+			const currentMemberTeamId = currentMember?.memberTeam?._id ?? null
 
 			setMembers(
 				memberRows.map((member) => ({
@@ -146,9 +148,14 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 			setActivity(activityRows)
 
 			const assignedToMe = mappedTasks.filter((task) => task.assigneeMemberId && task.assigneeMemberId === currentMemberId)
-			const teamBacklog = mappedTasks.filter(
-				(task) => task.status !== 'done' && (!task.assigneeMemberId || task.assigneeMemberId !== currentMemberId)
-			)
+			const teamBacklog = currentMemberTeamId
+				? mappedTasks.filter(
+					(task) =>
+						task.status !== 'done' &&
+						task.teamId === currentMemberTeamId &&
+						task.assigneeMemberId !== currentMemberId
+				)
+				: []
 
 			setMyAssignedTasks(assignedToMe)
 			setTeamBacklogTasks(teamBacklog)

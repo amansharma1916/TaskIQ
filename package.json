@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "bcryptjs": "^3.0.3"
+  },
+  "scripts": {
+    "start": "concurrently \"npm --prefix backend start\" \"npm --prefix frontend run dev\""
   }
 }

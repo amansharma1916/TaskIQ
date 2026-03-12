@@ -1,0 +1,433 @@
+/* Freeze the ceo-content scroll container only while the assignments panel is mounted */
+.ceo-content:has(.manager-assignments-panel) {
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.manager-assignments-panel {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	overflow: hidden;
+}
+
+.manager-assignments-hero {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 1rem;
+	padding: 1.2rem 1.3rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 22px;
+	background:
+		linear-gradient(145deg, rgba(0, 212, 255, 0.1), rgba(123, 94, 167, 0.08) 48%, rgba(17, 24, 48, 0.82) 100%),
+		rgba(10, 16, 34, 0.86);
+	box-shadow: 0 22px 44px rgba(0, 0, 0, 0.24);
+}
+
+.manager-assignment-eyebrow {
+	margin: 0 0 0.35rem;
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--cyan);
+}
+
+.manager-assignments-hero h1 {
+	margin: 0;
+	font-family: 'Space Grotesk', sans-serif;
+	font-size: clamp(1.45rem, 2vw, 1.95rem);
+	line-height: 1.05;
+}
+
+.manager-assignments-hero-copy {
+	margin: 0.55rem 0 0;
+	max-width: 58ch;
+	font-size: 0.92rem;
+	line-height: 1.6;
+	color: rgba(240, 244, 255, 0.74);
+}
+
+.manager-assignments-summary {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(120px, 1fr));
+	gap: 0.8rem;
+	width: min(100%, 320px);
+}
+
+.manager-assignments-summary-card {
+	display: grid;
+	gap: 0.35rem;
+	padding: 0.95rem 1rem;
+	border-radius: 18px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	background: rgba(8, 12, 26, 0.38);
+	backdrop-filter: blur(10px);
+}
+
+.manager-assignments-summary-label {
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+.manager-assignments-summary-card strong {
+	font-family: 'Space Grotesk', sans-serif;
+	font-size: 1.8rem;
+	line-height: 1;
+	color: var(--white);
+}
+
+.manager-assignment-error {
+	margin: 0;
+}
+
+.manager-assignments-grid {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 1rem;
+	align-items: stretch;
+}
+
+.manager-assignment-section {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	padding: 1.1rem;
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 22px;
+	background: linear-gradient(180deg, rgba(17, 24, 48, 0.92), rgba(11, 17, 34, 0.92));
+	box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+}
+
+.manager-assignment-section-head {
+	flex-shrink: 0;
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 1rem;
+	padding-bottom: 0.9rem;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.manager-assignment-section-head h2 {
+	margin: 0;
+	font-size: 1.05rem;
+	font-family: 'Space Grotesk', sans-serif;
+	color: var(--white);
+}
+
+.manager-assignment-section-copy {
+	margin: 0.35rem 0 0;
+	font-size: 0.84rem;
+	line-height: 1.5;
+	color: rgba(240, 244, 255, 0.68);
+}
+
+.manager-assignment-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 42px;
+	height: 42px;
+	padding: 0 0.85rem;
+	border-radius: 999px;
+	background: rgba(0, 212, 255, 0.12);
+	border: 1px solid rgba(0, 212, 255, 0.18);
+	color: var(--cyan);
+	font-family: 'Space Grotesk', sans-serif;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.manager-assignment-list {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	display: grid;
+	gap: 0.9rem;
+	align-content: start;
+	padding-top: 1rem;
+	padding-right: 0.25rem;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 212, 255, 0.22) transparent;
+}
+
+.manager-assignment-list::-webkit-scrollbar {
+	width: 4px;
+}
+
+.manager-assignment-list::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.manager-assignment-list::-webkit-scrollbar-thumb {
+	border-radius: 999px;
+	background: rgba(0, 212, 255, 0.22);
+}
+
+.manager-assignment-item {
+	display: grid;
+	gap: 0.9rem;
+	padding: 1rem;
+	border-radius: 18px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+	transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.manager-assignment-item:hover {
+	border-color: rgba(0, 212, 255, 0.18);
+	transform: translateY(-1px);
+	box-shadow: 0 16px 28px rgba(0, 0, 0, 0.16);
+}
+
+.manager-assignment-item-topline {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.7rem;
+	flex-wrap: wrap;
+}
+
+.manager-assignment-chip-row {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.manager-assignment-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.34rem 0.7rem;
+	border-radius: 999px;
+	font-size: 0.74rem;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	border: 1px solid transparent;
+}
+
+.manager-assignment-chip-status.status-todo {
+	background: rgba(251, 191, 36, 0.12);
+	border-color: rgba(251, 191, 36, 0.24);
+	color: #ffd56a;
+}
+
+.manager-assignment-chip-status.status-in-progress {
+	background: rgba(0, 212, 255, 0.12);
+	border-color: rgba(0, 212, 255, 0.22);
+	color: #79e5ff;
+}
+
+.manager-assignment-chip-status.status-done {
+	background: rgba(74, 222, 128, 0.12);
+	border-color: rgba(74, 222, 128, 0.22);
+	color: #81f0ab;
+}
+
+.manager-assignment-chip-priority.priority-low {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(255, 255, 255, 0.09);
+	color: rgba(240, 244, 255, 0.84);
+}
+
+.manager-assignment-chip-priority.priority-medium {
+	background: rgba(123, 94, 167, 0.16);
+	border-color: rgba(123, 94, 167, 0.28);
+	color: #d6bef7;
+}
+
+.manager-assignment-chip-priority.priority-high {
+	background: rgba(248, 113, 113, 0.12);
+	border-color: rgba(248, 113, 113, 0.24);
+	color: #ff9d9d;
+}
+
+.manager-assignment-due {
+	font-size: 0.74rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: rgba(240, 244, 255, 0.62);
+}
+
+.manager-assignment-main {
+	display: grid;
+	gap: 0.55rem;
+}
+
+.manager-assignment-copy {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.manager-assignment-copy h3 {
+	margin: 0;
+	font-size: 1rem;
+	line-height: 1.3;
+	color: var(--white);
+}
+
+.manager-assignment-copy p {
+	margin: 0;
+	font-size: 0.82rem;
+	color: rgba(240, 244, 255, 0.6);
+}
+
+.manager-assignment-description {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.85rem;
+	line-height: 1.6;
+}
+
+.manager-assignment-meta-row {
+	display: flex;
+	gap: 0.55rem;
+	flex-wrap: wrap;
+}
+
+.manager-assignment-meta-row span {
+	padding: 0.35rem 0.7rem;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.03);
+	font-size: 0.74rem;
+	color: rgba(240, 244, 255, 0.78);
+}
+
+.manager-assignment-controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0.8rem;
+	padding-top: 0.2rem;
+}
+
+.manager-assignment-controls label {
+	display: grid;
+	gap: 0.4rem;
+	font-size: 0.74rem;
+	font-weight: 600;
+	color: rgba(240, 244, 255, 0.76);
+}
+
+.manager-assignment-select {
+	width: 100%;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 12px;
+	padding: 0.78rem 2.5rem 0.78rem 0.9rem;
+	background-color: rgba(8, 12, 26, 0.62);
+	background-image: linear-gradient(45deg, transparent 50%, #5e6d84 50%), linear-gradient(135deg, #5e6d84 50%, transparent 50%);
+	background-position: calc(100% - 18px) calc(50% + 1px), calc(100% - 13px) calc(50% + 1px);
+	background-size: 5px 5px, 5px 5px;
+	background-repeat: no-repeat;
+	color: var(--white);
+	font: inherit;
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.manager-assignment-select:focus {
+	outline: none;
+	border-color: rgba(0, 212, 255, 0.72);
+	box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.14);
+	background-color: rgba(8, 12, 26, 0.74);
+}
+
+.manager-assignment-select:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.manager-assignment-select option {
+	background: #111830;
+	color: #f0f4ff;
+}
+
+.manager-assignment-empty {
+	flex: 1;
+	display: grid;
+	place-items: center;
+	text-align: center;
+	gap: 0.35rem;
+	min-height: 240px;
+	padding: 1.4rem;
+	margin-top: 1rem;
+	border-radius: 18px;
+	border: 1px dashed rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.manager-assignment-empty h3 {
+	margin: 0;
+	font-size: 1rem;
+	font-family: 'Space Grotesk', sans-serif;
+}
+
+.manager-assignment-empty p {
+	margin: 0;
+	max-width: 30ch;
+	font-size: 0.85rem;
+	line-height: 1.55;
+	color: rgba(240, 244, 255, 0.66);
+}
+
+@media (max-width: 1100px) {
+	.manager-assignments-hero {
+		flex-direction: column;
+	}
+
+	.manager-assignments-summary {
+		width: 100%;
+	}
+
+	.manager-assignments-grid {
+		grid-template-columns: 1fr;
+		grid-auto-rows: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 720px) {
+	.manager-assignments-hero,
+	.manager-assignment-section {
+		padding: 1rem;
+		border-radius: 18px;
+	}
+
+	.manager-assignments-summary {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.manager-assignment-section-head {
+		flex-direction: column;
+	}
+
+	.manager-assignment-count {
+		min-width: 0;
+	}
+
+	.manager-assignment-controls {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 520px) {
+	.manager-assignments-summary {
+		grid-template-columns: 1fr;
+	}
+
+	.manager-assignment-item {
+		padding: 0.9rem;
+	}
+}

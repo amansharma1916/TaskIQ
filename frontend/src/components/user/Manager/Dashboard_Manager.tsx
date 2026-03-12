@@ -165,6 +165,7 @@ const Dashboard_Manager = () => {
     dueDate?: string | null
     projectId: string
     teamId?: string | null
+    assigneeMemberId?: string | null
   }) => {
     setTaskActionError('')
     setIsTaskMutating(true)
@@ -189,6 +190,7 @@ const Dashboard_Manager = () => {
       dueDate?: string | null
       projectId: string
       teamId?: string | null
+      assigneeMemberId?: string | null
     }
   ) => {
     setTaskActionError('')
@@ -316,8 +318,13 @@ const Dashboard_Manager = () => {
             isActive={activePanel === 'my-assignments'}
             isLoading={state.isLoading}
             error={state.error}
+            actionError={taskActionError}
+            isMutating={isTaskMutating}
+            members={members}
             assignedToMe={myAssignedTasks}
-            teamBacklog={teamBacklogTasks}
+            teamTasks={teamBacklogTasks}
+            onUpdateStatus={(taskId, status) => void handleTaskStatusUpdate(taskId, status)}
+            onAssign={(taskId, assigneeMemberId) => void handleTaskAssigneeUpdate(taskId, assigneeMemberId)}
           />
           <ManagerTeamsPanel
             isActive={activePanel === 'teams'}

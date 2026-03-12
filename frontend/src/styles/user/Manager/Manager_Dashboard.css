@@ -1,9 +1,3 @@
-.manager-assignments-grid {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 12px;
-}
-
 .manager-task-controls {
 	align-items: flex-end;
 	gap: 10px;
@@ -34,10 +28,6 @@
 }
 
 @media (max-width: 1024px) {
-	.manager-assignments-grid {
-		grid-template-columns: 1fr;
-	}
-
 	.manager-task-controls {
 		width: 100%;
 		justify-content: flex-start;
