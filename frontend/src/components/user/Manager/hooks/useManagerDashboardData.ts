@@ -32,6 +32,9 @@ type UseManagerDashboardDataResult = {
 	setTaskQuery: (updater: (prev: ManagerTaskQuery) => ManagerTaskQuery) => void
 	reloadTasks: () => Promise<void>
 	reloadAll: () => Promise<void>
+	isActivityLoadingMore: boolean
+	canLoadMoreActivity: boolean
+	loadMoreActivity: () => Promise<void>
 }
 
 const DEFAULT_TASK_QUERY: ManagerTaskQuery = {
@@ -86,6 +89,8 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		total: 0,
 		totalPages: 1,
 	})
+	const [activityLimit, setActivityLimit] = useState(50)
+	const [isActivityLoadingMore, setIsActivityLoadingMore] = useState(false)
 	const [state, setState] = useState<ManagerDataState>({
 		isLoading: true,
 		error: '',
@@ -121,7 +126,7 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 				getProjects(),
 				getTasks(),
 				getTeams(),
-				getActivityFeed(),
+				getActivityFeed(activityLimit),
 				getCompanyMembers(),
 			])
 
@@ -169,7 +174,21 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 				error: error instanceof Error ? error.message : 'Failed to load manager dashboard data',
 			})
 		}
-	}, [])
+	}, [activityLimit])
+
+	const loadMoreActivity = useCallback(async () => {
+		const newLimit = Math.min(activityLimit + 50, 200)
+		setIsActivityLoadingMore(true)
+		try {
+			const activityRows = await getActivityFeed(newLimit)
+			setActivity(activityRows)
+			setActivityLimit(newLimit)
+		} finally {
+			setIsActivityLoadingMore(false)
+		}
+	}, [activityLimit])
+
+	const canLoadMoreActivity = activity.length >= activityLimit && activityLimit < 200
 
 	useEffect(() => {
 		void reloadAll()
@@ -193,5 +212,8 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		reloadTasks,
 		state,
 		reloadAll,
+		isActivityLoadingMore,
+		canLoadMoreActivity,
+		loadMoreActivity,
 	}
 }

@@ -41,6 +41,7 @@ const mapActivity = (item: ActivityApiItem, index: number): ManagerActivityItem 
 	id: item.id || item._id || `activity-${index}`,
 	label: item.label || item.action || 'Activity recorded',
 	time: timeAgo(item.createdAt),
+	rawDate: item.createdAt ?? '',
 	entity:
 		item.entityType === 'project' ||
 		item.entityType === 'task' ||
@@ -50,8 +51,8 @@ const mapActivity = (item: ActivityApiItem, index: number): ManagerActivityItem 
 			: 'system',
 })
 
-export const getActivityFeed = async (): Promise<ManagerActivityItem[]> => {
-	const response = await authorizedFetch('/api/activity')
+export const getActivityFeed = async (limit = 50): Promise<ManagerActivityItem[]> => {
+	const response = await authorizedFetch(`/api/activity?limit=${limit}`)
 
 	// Backend endpoint may not exist yet during frontend-first implementation.
 	if (response.status === 404) {

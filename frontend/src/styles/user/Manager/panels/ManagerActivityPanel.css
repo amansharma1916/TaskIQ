@@ -1,3 +1,173 @@
-.manager-panel .manager-list-item {
-	border-left: 4px solid var(--mgr-purple);
+.manager-activity-feed {
+	display: grid;
+	gap: 0;
+}
+
+.manager-activity-group {
+	margin-bottom: 8px;
+}
+
+.manager-activity-group-head {
+	font-size: 0.7rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: var(--muted);
+	padding: 10px 0 6px;
+	border-bottom: 1px solid var(--border);
+	margin-bottom: 2px;
+}
+
+.manager-activity-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 10px 4px;
+	border-bottom: 1px solid var(--border);
+}
+
+.manager-activity-item:last-child {
+	border-bottom: 0;
+}
+
+.manager-activity-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	margin-top: 4px;
+}
+
+.activity-dot-cyan {
+	background: var(--cyan);
+	box-shadow: 0 0 6px rgba(0, 212, 255, 0.55);
+}
+
+.activity-dot-yellow {
+	background: var(--yellow);
+	box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+}
+
+.activity-dot-purple {
+	background: var(--purple);
+	box-shadow: 0 0 6px rgba(123, 94, 167, 0.55);
+}
+
+.activity-dot-green {
+	background: var(--green);
+	box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+}
+
+.activity-dot-muted {
+	background: var(--muted);
+}
+
+.manager-activity-content {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1;
+	min-width: 0;
+}
+
+.manager-activity-label {
+	font-size: 0.84rem;
+	color: var(--white);
+	line-height: 1.4;
+}
+
+.manager-activity-meta {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.manager-activity-chip {
+	padding: 1px 7px;
+	border-radius: 999px;
+	font-size: 0.68rem;
+	font-weight: 600;
+	text-transform: capitalize;
+}
+
+.manager-activity-chip-project {
+	background: rgba(0, 212, 255, 0.12);
+	color: var(--cyan);
+	border: 1px solid rgba(0, 212, 255, 0.22);
+}
+
+.manager-activity-chip-task {
+	background: rgba(251, 191, 36, 0.12);
+	color: var(--yellow);
+	border: 1px solid rgba(251, 191, 36, 0.22);
+}
+
+.manager-activity-chip-team {
+	background: rgba(123, 94, 167, 0.15);
+	color: #cfb7f8;
+	border: 1px solid rgba(123, 94, 167, 0.28);
+}
+
+.manager-activity-chip-member {
+	background: rgba(74, 222, 128, 0.12);
+	color: var(--green);
+	border: 1px solid rgba(74, 222, 128, 0.22);
+}
+
+.manager-activity-chip-system {
+	background: rgba(122, 133, 163, 0.1);
+	color: var(--muted);
+	border: 1px solid rgba(122, 133, 163, 0.2);
+}
+
+.manager-activity-time {
+	font-size: 0.76rem;
+	color: var(--muted);
+}
+
+.manager-activity-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	padding: 48px 0;
+	color: var(--muted);
+}
+
+.manager-activity-empty-icon {
+	font-size: 1.8rem;
+	opacity: 0.35;
+}
+
+.manager-activity-empty p {
+	margin: 0;
+	font-size: 0.88rem;
+}
+
+.manager-activity-load-more-row {
+	display: flex;
+	justify-content: center;
+	padding: 14px 0 4px;
+}
+
+.manager-activity-load-more {
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	color: var(--muted);
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 0.82rem;
+	padding: 7px 22px;
+	transition: border-color 0.15s, color 0.15s;
+}
+
+.manager-activity-load-more:hover:not(:disabled) {
+	border-color: var(--cyan);
+	color: var(--cyan);
+}
+
+.manager-activity-load-more:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }

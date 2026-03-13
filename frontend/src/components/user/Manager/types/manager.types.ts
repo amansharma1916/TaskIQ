@@ -69,6 +69,7 @@ export type ManagerActivityItem = {
 	id: string
 	label: string
 	time: string
+	rawDate: string
 	entity: 'project' | 'task' | 'team' | 'member' | 'system'
 }
 

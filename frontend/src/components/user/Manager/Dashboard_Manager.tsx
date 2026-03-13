@@ -61,6 +61,9 @@ const Dashboard_Manager = () => {
     reloadTasks,
     state,
     reloadAll,
+    isActivityLoadingMore,
+    canLoadMoreActivity,
+    loadMoreActivity,
   } = useManagerDashboardData()
 
   const user = getAuthUser()
@@ -339,7 +342,15 @@ const Dashboard_Manager = () => {
             onAddMember={(teamId, memberId) => void handleAddTeamMember(teamId, memberId)}
             onRevokeMember={(teamId, memberId) => void handleRemoveTeamMember(teamId, memberId)}
           />
-          <ManagerActivityPanel isActive={activePanel === 'activity'} isLoading={state.isLoading} error={state.error} activity={activity} />
+          <ManagerActivityPanel
+            isActive={activePanel === 'activity'}
+            isLoading={state.isLoading}
+            error={state.error}
+            activity={activity}
+            isLoadingMore={isActivityLoadingMore}
+            canLoadMore={canLoadMoreActivity}
+            onLoadMore={() => void loadMoreActivity()}
+          />
         </section>
       </main>
     </div>
