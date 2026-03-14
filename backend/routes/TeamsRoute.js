@@ -210,6 +210,10 @@ router.post("/add-member", authorizeRoles("CEO", "Manager"), authorizeCapability
       return res.status(403).json({ message: "Member not in this company" });
     }
 
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope === "team" && member.memberRole === "Manager") {
+      return res.status(403).json({ message: "Team-scoped managers can add only employees" });
+    }
+
     if (member.memberTeam && String(member.memberTeam) === String(teamId)) {
       return res.status(409).json({ message: "Member already in this team" });
     }

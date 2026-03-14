@@ -49,8 +49,19 @@ router.post("/add", authorizeRoles("CEO", "Manager"), async (req, res) => {
       return;
     }
 
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope === "team") {
+      return res.status(403).json({ message: "Team-scoped managers cannot create members directly. Send an invite instead." });
+    }
+
     if (!memberName) {
       return res.status(400).json({ message: "memberName is required" });
+    }
+
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope !== "company" && teamId) {
+      const managerTeamIdSet = new Set(getManagerScopeTeamIds(req).map((id) => String(id)));
+      if (!managerTeamIdSet.has(String(teamId))) {
+        return res.status(403).json({ message: "Cannot add members outside your team scope" });
+      }
     }
 
     let resolvedCompanyId = companyId;

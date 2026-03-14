@@ -271,6 +271,11 @@ const ManagerTasksPanel = ({
 			return
 		}
 
+		if (isTeamScopedManager && taskForm.teamId && !managerScopedTeamIdSet.has(taskForm.teamId)) {
+			setTaskFormError('Selected team is outside your scope.')
+			return
+		}
+
 		const payload = {
 			title: trimmedTitle,
 			description: taskForm.description.trim(),

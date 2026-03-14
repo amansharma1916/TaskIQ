@@ -32,7 +32,6 @@ const buildCapabilities = ({ effectiveRole, managerScope }) => {
   if (effectiveRole === "Manager") {
     const base = [
       "projects:read",
-      "projects:create",
       "projects:update",
       "tasks:read",
       "tasks:create",
@@ -40,7 +39,6 @@ const buildCapabilities = ({ effectiveRole, managerScope }) => {
       "tasks:assign",
       "tasks:status:update",
       "teams:read",
-      "teams:create",
       "teams:update",
       "members:read",
       "invite:create",
@@ -48,6 +46,7 @@ const buildCapabilities = ({ effectiveRole, managerScope }) => {
     ];
 
     if (managerScope === "company") {
+      base.push("projects:create", "teams:create");
       base.push("projects:manage:company", "tasks:manage:company", "teams:manage:company");
     }
 

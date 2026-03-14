@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ManagerMemberOption, ManagerProjectCard, ManagerTaskRow, ManagerTeamCard } from '../../types/manager.types'
+import { getAuthUser } from '../../../../../services/auth'
 import '../../../../../styles/user/Manager/panels/ManagerTeamsPanel.css'
 
 type ManagerTeamsPanelProps = {
@@ -78,6 +79,10 @@ const ManagerTeamsPanel = ({
 	onSetTeamLead,
 	onSendInvite,
 }: ManagerTeamsPanelProps) => {
+	const authUser = getAuthUser()
+	const isTeamScopedManager = authUser?.role === 'Manager' && authUser?.managerScope === 'team'
+	const managerScopedTeamIdSet = useMemo(() => new Set(authUser?.managerTeamIds ?? []), [authUser?.managerTeamIds])
+
 	const [query, setQuery] = useState('')
 	const [tagFilter, setTagFilter] = useState('all')
 	const [healthFilter, setHealthFilter] = useState<'all' | TeamHealth>('all')
@@ -157,9 +162,10 @@ const ManagerTeamsPanel = ({
 		}
 
 		return [...members]
+			.filter((member) => !isTeamScopedManager || String(member.role ?? '').toLowerCase() !== 'manager')
 			.filter((member) => member.teamId !== selectedTeamView.team.id)
 			.sort((left, right) => left.name.localeCompare(right.name))
-	}, [members, selectedTeamView, modalState])
+	}, [members, selectedTeamView, modalState, isTeamScopedManager])
 
 	const revokableMembers = useMemo(() => {
 		if (!selectedTeamView || modalState?.type !== 'revoke') {
@@ -196,6 +202,13 @@ const ManagerTeamsPanel = ({
 	}, [selectedMemberId, selectedTeamView, modalState])
 
 	const hasActiveFilters = Boolean(query.trim()) || tagFilter !== 'all' || healthFilter !== 'all'
+	const inviteableTeams = useMemo(
+		() =>
+			isTeamScopedManager
+				? teams.filter((team) => managerScopedTeamIdSet.has(team.id))
+				: teams,
+		[isTeamScopedManager, managerScopedTeamIdSet, teams]
+	)
 
 	const closeModal = () => {
 		setModalState(null)
@@ -231,6 +244,9 @@ const ManagerTeamsPanel = ({
 
 	const openInviteModal = () => {
 		setModalState({ type: 'invite' })
+		if (isTeamScopedManager) {
+			setInviteForm((prev) => ({ ...prev, role: 'Employee' }))
+		}
 		setModalError('')
 	}
 
@@ -275,6 +291,11 @@ const ManagerTeamsPanel = ({
 	}
 
 	const submitCreateTeam = () => {
+		if (isTeamScopedManager) {
+			setModalError('Team-scoped managers cannot create new teams.')
+			return
+		}
+
 		if (!createTeamForm.teamName.trim()) {
 			setModalError('Team name is required.')
 			return
@@ -310,12 +331,20 @@ const ManagerTeamsPanel = ({
 			return
 		}
 
+		if (isTeamScopedManager) {
+			const hasOutOfScopeTeam = selectedInviteTeamIds.some((teamId) => !managerScopedTeamIdSet.has(teamId))
+			if (hasOutOfScopeTeam) {
+				setModalError('You can invite only within your team scope.')
+				return
+			}
+		}
+
 		setModalError('')
 		try {
 			await onSendInvite({
 				name: inviteForm.name.trim(),
 				email: inviteForm.email.trim(),
-				role: inviteForm.role,
+				role: isTeamScopedManager ? 'Employee' : inviteForm.role,
 				scopeTeamIds: selectedInviteTeamIds,
 			})
 		} catch {
@@ -352,12 +381,14 @@ const ManagerTeamsPanel = ({
 			<div className="ceo-section-head">
 				<h2>Teams</h2>
 				<div className="ceo-row" style={{ gap: 10 }}>
-					<button className="ceo-btn-outline" type="button" onClick={openInviteModal} disabled={isMutating || teams.length === 0}>
+					<button className="ceo-btn-outline" type="button" onClick={openInviteModal} disabled={isMutating || inviteableTeams.length === 0}>
 						Invite Member
 					</button>
-					<button className="ceo-btn-primary" type="button" onClick={openCreateTeamModal} disabled={isMutating}>
-						Create Team
-					</button>
+					{!isTeamScopedManager ? (
+						<button className="ceo-btn-primary" type="button" onClick={openCreateTeamModal} disabled={isMutating}>
+							Create Team
+						</button>
+					) : null}
 				</div>
 			</div>
 
@@ -747,19 +778,20 @@ const ManagerTeamsPanel = ({
 								<span>Role</span>
 								<select
 									value={inviteForm.role}
+									disabled={isTeamScopedManager}
 									onChange={(event) =>
 										setInviteForm((prev) => ({ ...prev, role: event.target.value as 'Manager' | 'Employee' }))
 									}
 								>
 									<option value="Employee">Employee</option>
-									<option value="Manager">Manager</option>
+									{!isTeamScopedManager ? <option value="Manager">Manager</option> : null}
 								</select>
 							</label>
 						</div>
 						<label className="ceo-field">
 							<span>Target teams</span>
 							<div className="manager-filter-chip-row">
-								{teams.map((team) => {
+								{inviteableTeams.map((team) => {
 									const isSelected = selectedInviteTeamIds.includes(team.id)
 									return (
 										<button
@@ -779,7 +811,7 @@ const ManagerTeamsPanel = ({
 							<button className="ceo-btn-outline" type="button" onClick={closeModal}>
 								Cancel
 							</button>
-							<button className="ceo-btn-primary" type="button" onClick={() => void submitInvite()} disabled={isMutating || teams.length === 0}>
+							<button className="ceo-btn-primary" type="button" onClick={() => void submitInvite()} disabled={isMutating || inviteableTeams.length === 0}>
 								{isMutating ? 'Inviting...' : 'Send Invite'}
 							</button>
 						</div>
