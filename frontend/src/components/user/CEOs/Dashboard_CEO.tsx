@@ -183,6 +183,7 @@ const Dashboard_CEO = () => {
 		dueDate: '',
 		projectId: '',
 		teamId: '',
+		assigneeMemberId: '',
 	})
 	const storedUser: AuthUser | null = getAuthUser()
 
@@ -594,6 +595,7 @@ const Dashboard_CEO = () => {
 				dueDate: '',
 				projectId: presetEntityId ?? projectsData[0]?.id ?? '',
 				teamId: '',
+				assigneeMemberId: '',
 			})
 		}
 		setOpenModal(modalId)
@@ -623,6 +625,7 @@ const Dashboard_CEO = () => {
 			dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : '',
 			projectId: task.projectId?._id || projectsData[0]?.id || '',
 			teamId: task.teamId?._id || '',
+			assigneeMemberId: task.assignee?._id || '',
 		})
 		setOpenModal('createTask')
 	}
@@ -659,6 +662,7 @@ const Dashboard_CEO = () => {
 					dueDate: taskForm.dueDate || null,
 					projectId: taskForm.projectId,
 					teamId: taskForm.teamId || null,
+					assigneeMemberId: taskForm.assigneeMemberId || null,
 				})
 				setActionAlert({ type: 'success', message: 'Task updated successfully.' })
 			} else {
@@ -670,6 +674,7 @@ const Dashboard_CEO = () => {
 					dueDate: taskForm.dueDate || null,
 					projectId: taskForm.projectId,
 					teamId: taskForm.teamId || null,
+					assigneeMemberId: taskForm.assigneeMemberId || null,
 				})
 				setActionAlert({ type: 'success', message: 'Task created successfully.' })
 			}
@@ -1745,6 +1750,9 @@ const Dashboard_CEO = () => {
 									}}
 									projects={projectsData.map((project) => ({ id: project.id, name: project.name }))}
 									teams={taskProjectTeams.map((team) => ({ id: team.id, name: team.name }))}
+									members={membersData
+										.map((member) => ({ id: member.id, name: member.name }))
+										.sort((left, right) => left.name.localeCompare(right.name))}
 									errorMessage={taskActionError}
 								/>
 							) : (

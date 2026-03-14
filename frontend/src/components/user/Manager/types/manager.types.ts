@@ -54,6 +54,7 @@ export type ManagerMemberOption = {
 	id: string
 	name: string
 	teamId: string | null
+	role?: string
 }
 
 export type ManagerTeamCard = {
@@ -68,6 +69,7 @@ export type ManagerActivityItem = {
 	id: string
 	label: string
 	time: string
+	rawDate: string
 	entity: 'project' | 'task' | 'team' | 'member' | 'system'
 }
 

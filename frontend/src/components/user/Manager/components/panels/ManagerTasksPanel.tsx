@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import type { ApiTaskPriority, ApiTaskStatus, TaskListSortBy } from '../../../CEOs/types/api.types'
 import type { ManagerMemberOption, ManagerProjectCard, ManagerTaskPageState, ManagerTaskQuery, ManagerTaskRow, ManagerTeamCard } from '../../types/manager.types'
+import { getAssignableMembersForTask } from '../../utils/taskAssignments'
 import '../../../../../styles/user/Manager/panels/ManagerTasksPanel.css'
 
 type ManagerTasksPanelProps = {
@@ -28,6 +29,7 @@ type ManagerTasksPanelProps = {
 		dueDate?: string | null
 		projectId: string
 		teamId?: string | null
+		assigneeMemberId?: string | null
 	}) => void
 	onEditTask: (
 		taskId: string,
@@ -39,6 +41,7 @@ type ManagerTasksPanelProps = {
 			dueDate?: string | null
 			projectId: string
 			teamId?: string | null
+			assigneeMemberId?: string | null
 		}
 	) => void
 }
@@ -53,6 +56,7 @@ type TaskFormState = {
 	projectId: string
 	teamId: string
 	dueDate: string
+	assigneeMemberId: string
 }
 
 const statusOptions: Array<{ label: string; value: ApiTaskStatus }> = [
@@ -114,15 +118,8 @@ const ManagerTasksPanel = ({
 		projectId: '',
 		teamId: '',
 		dueDate: '',
+		assigneeMemberId: '',
 	})
-
-	const getAssignableMembers = (task: ManagerTaskRow): ManagerMemberOption[] => {
-		if (!task.teamId) {
-			return []
-		}
-
-		return members.filter((member) => member.teamId === task.teamId)
-	}
 
 	const updateQuery = (updates: Partial<ManagerTaskQuery>, resetPage = true) => {
 		onTaskQueryChange((prev) => ({
@@ -172,6 +169,7 @@ const ManagerTasksPanel = ({
 
 	const sortedProjects = useMemo(() => [...projects].sort((left, right) => left.name.localeCompare(right.name)), [projects])
 	const sortedTeams = useMemo(() => [...teams].sort((left, right) => left.name.localeCompare(right.name)), [teams])
+	const sortedMembers = useMemo(() => [...members].sort((left, right) => left.name.localeCompare(right.name)), [members])
 
 	const selectedProject = useMemo(
 		() => sortedProjects.find((project) => project.id === taskForm.projectId) ?? null,
@@ -195,6 +193,7 @@ const ManagerTasksPanel = ({
 			projectId: sortedProjects[0]?.id ?? '',
 			teamId: '',
 			dueDate: '',
+			assigneeMemberId: '',
 		})
 	}
 
@@ -208,12 +207,15 @@ const ManagerTasksPanel = ({
 			projectId: task.projectId ?? sortedProjects[0]?.id ?? '',
 			teamId: task.teamId ?? '',
 			dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+			assigneeMemberId: task.assigneeMemberId ?? '',
 		})
 	}
 
 	const closeTaskModal = () => {
 		setActiveModal(null)
 	}
+
+	const getAssignableMembers = (task: ManagerTaskRow): ManagerMemberOption[] => getAssignableMembersForTask(task, members)
 
 	const updateTaskForm = (updates: Partial<TaskFormState>) => {
 		setTaskForm((prev) => ({
@@ -236,6 +238,7 @@ const ManagerTasksPanel = ({
 			dueDate: taskForm.dueDate || null,
 			projectId: taskForm.projectId,
 			teamId: taskForm.teamId || null,
+			assigneeMemberId: taskForm.assigneeMemberId || null,
 		}
 
 		if (activeModal?.mode === 'edit' && activeModal.taskId) {
@@ -359,7 +362,7 @@ const ManagerTasksPanel = ({
 										className="manager-task-select"
 										value={task.assigneeMemberId ?? ''}
 										onChange={(event) => onAssign(task.id, event.target.value || null)}
-										disabled={isMutating || !task.teamId}
+										disabled={isMutating}
 									>
 										<option value="">Unassigned</option>
 										{getAssignableMembers(task).map((member) => (
@@ -498,6 +501,20 @@ const ManagerTasksPanel = ({
 								<label>
 									Due Date
 									<input type="date" value={taskForm.dueDate} onChange={(event) => updateTaskForm({ dueDate: event.target.value })} />
+								</label>
+								<label>
+									Assignee
+									<select
+										value={taskForm.assigneeMemberId}
+										onChange={(event) => updateTaskForm({ assigneeMemberId: event.target.value })}
+									>
+										<option value="">Unassigned</option>
+										{sortedMembers.map((member) => (
+											<option key={member.id} value={member.id}>
+												{member.name}
+											</option>
+										))}
+									</select>
 								</label>
 							</div>
 							<label>

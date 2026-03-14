@@ -32,6 +32,9 @@ type UseManagerDashboardDataResult = {
 	setTaskQuery: (updater: (prev: ManagerTaskQuery) => ManagerTaskQuery) => void
 	reloadTasks: () => Promise<void>
 	reloadAll: () => Promise<void>
+	isActivityLoadingMore: boolean
+	canLoadMoreActivity: boolean
+	loadMoreActivity: () => Promise<void>
 }
 
 const DEFAULT_TASK_QUERY: ManagerTaskQuery = {
@@ -86,6 +89,8 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		total: 0,
 		totalPages: 1,
 	})
+	const [activityLimit, setActivityLimit] = useState(50)
+	const [isActivityLoadingMore, setIsActivityLoadingMore] = useState(false)
 	const [state, setState] = useState<ManagerDataState>({
 		isLoading: true,
 		error: '',
@@ -121,21 +126,24 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 				getProjects(),
 				getTasks(),
 				getTeams(),
-				getActivityFeed(),
+				getActivityFeed(activityLimit),
 				getCompanyMembers(),
 			])
 
 			const authUser = getAuthUser()
-			const currentMemberId = memberRows.find((member) => {
+			const currentMember = memberRows.find((member) => {
 				const memberUserId = typeof member.userId === 'string' ? member.userId : member.userId?._id
 				return memberUserId === authUser?.id
-			})?._id
+			})
+			const currentMemberId = currentMember?._id
+			const currentMemberTeamId = currentMember?.memberTeam?._id ?? null
 
 			setMembers(
 				memberRows.map((member) => ({
 					id: member._id,
 					name: member.memberName,
 					teamId: member.memberTeam?._id ?? null,
+					role: member.memberRole,
 				}))
 			)
 
@@ -145,9 +153,14 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 			setActivity(activityRows)
 
 			const assignedToMe = mappedTasks.filter((task) => task.assigneeMemberId && task.assigneeMemberId === currentMemberId)
-			const teamBacklog = mappedTasks.filter(
-				(task) => task.status !== 'done' && (!task.assigneeMemberId || task.assigneeMemberId !== currentMemberId)
-			)
+			const teamBacklog = currentMemberTeamId
+				? mappedTasks.filter(
+					(task) =>
+						task.status !== 'done' &&
+						task.teamId === currentMemberTeamId &&
+						task.assigneeMemberId !== currentMemberId
+				)
+				: []
 
 			setMyAssignedTasks(assignedToMe)
 			setTeamBacklogTasks(teamBacklog)
@@ -161,7 +174,21 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 				error: error instanceof Error ? error.message : 'Failed to load manager dashboard data',
 			})
 		}
-	}, [])
+	}, [activityLimit])
+
+	const loadMoreActivity = useCallback(async () => {
+		const newLimit = Math.min(activityLimit + 50, 200)
+		setIsActivityLoadingMore(true)
+		try {
+			const activityRows = await getActivityFeed(newLimit)
+			setActivity(activityRows)
+			setActivityLimit(newLimit)
+		} finally {
+			setIsActivityLoadingMore(false)
+		}
+	}, [activityLimit])
+
+	const canLoadMoreActivity = activity.length >= activityLimit && activityLimit < 200
 
 	useEffect(() => {
 		void reloadAll()
@@ -185,5 +212,8 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		reloadTasks,
 		state,
 		reloadAll,
+		isActivityLoadingMore,
+		canLoadMoreActivity,
+		loadMoreActivity,
 	}
 }

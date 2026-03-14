@@ -46,53 +46,47 @@ const MemberSchema = new mongoose.Schema(
 { timestamps: true }
 );
 
-MemberSchema.pre("validate", async function validateRoleScopeAlignment(next) {
-  try {
-    if (this.memberRole === "Manager") {
-      this.scopeType = this.scopeType || "team";
-    } else {
-      this.scopeType = "team";
-    }
+MemberSchema.pre("validate", async function validateRoleScopeAlignment() {
+  if (this.memberRole === "Manager") {
+    this.scopeType = this.scopeType || "team";
+  } else {
+    this.scopeType = "team";
+  }
 
-    if (this.memberTeam) {
-      const existsInScope = (this.scopeTeamIds ?? []).some((teamId) => String(teamId) === String(this.memberTeam));
-      if (!existsInScope) {
-        this.scopeTeamIds = [...(this.scopeTeamIds ?? []), this.memberTeam];
-      }
+  if (this.memberTeam) {
+    const existsInScope = (this.scopeTeamIds ?? []).some((teamId) => String(teamId) === String(this.memberTeam));
+    if (!existsInScope) {
+      this.scopeTeamIds = [...(this.scopeTeamIds ?? []), this.memberTeam];
     }
+  }
 
-    if (this.scopeType === "company") {
-      this.scopeTeamIds = [];
-    }
+  if (this.scopeType === "company") {
+    this.scopeTeamIds = [];
+  }
 
-    if (!this.userId) {
-      return next();
-    }
+  if (!this.userId) {
+    return;
+  }
 
-    const linkedUser = await Users.findById(this.userId).select("role companyId");
-    if (!linkedUser) {
-      return next(new Error("Linked user does not exist"));
-    }
+  const linkedUser = await Users.findById(this.userId).select("role companyId");
+  if (!linkedUser) {
+    throw new Error("Linked user does not exist");
+  }
 
-    if (linkedUser.companyId && this.companyId && String(linkedUser.companyId) !== String(this.companyId)) {
-      return next(new Error("Member company must match linked user company"));
-    }
+  if (linkedUser.companyId && this.companyId && String(linkedUser.companyId) !== String(this.companyId)) {
+    throw new Error("Member company must match linked user company");
+  }
 
-    if (linkedUser.role === "CEO") {
-      return next(new Error("CEO users cannot be persisted as members"));
-    }
+  if (linkedUser.role === "CEO") {
+    throw new Error("CEO users cannot be persisted as members");
+  }
 
-    if (linkedUser.role === "Manager" && this.memberRole !== "Manager") {
-      return next(new Error("Member role must align with linked user role"));
-    }
+  if (linkedUser.role === "Manager" && this.memberRole !== "Manager") {
+    throw new Error("Member role must align with linked user role");
+  }
 
-    if (linkedUser.role === "Employee" && this.memberRole !== "Employee") {
-      return next(new Error("Member role must align with linked user role"));
-    }
-
-    return next();
-  } catch (error) {
-    return next(error);
+  if (linkedUser.role === "Employee" && this.memberRole !== "Employee") {
+    throw new Error("Member role must align with linked user role");
   }
 });
 

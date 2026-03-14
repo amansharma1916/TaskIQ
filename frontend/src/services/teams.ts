@@ -18,3 +18,31 @@ export const getTeams = async (): Promise<ApiTeam[]> => {
 
 	return ((await response.json()) as ApiTeam[]) ?? []
 }
+
+export const addTeamMember = async (teamId: string, memberId: string): Promise<void> => {
+	const response = await authorizedFetch('/api/teams/add-member', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({ teamId, memberId }),
+	})
+
+	if (!response.ok) {
+		await throwFromResponse(response, 'Failed to add member to team')
+	}
+}
+
+export const removeTeamMember = async (teamId: string, memberId: string): Promise<void> => {
+	const response = await authorizedFetch('/api/teams/remove-member', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({ teamId, memberId }),
+	})
+
+	if (!response.ok) {
+		await throwFromResponse(response, 'Failed to revoke member from team')
+	}
+}

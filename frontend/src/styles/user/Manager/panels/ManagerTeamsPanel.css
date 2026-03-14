@@ -1,3 +1,202 @@
-.manager-panel .manager-list-item {
-	border-left: 4px solid var(--mgr-green);
+.manager-teams-panel .manager-teams-filters {
+	grid-template-columns: 1.4fr repeat(2, minmax(150px, 0.5fr));
+}
+
+.manager-teams-list-card {
+	display: grid;
+	gap: 12px;
+}
+
+.manager-team-card {
+	border-left: 3px solid rgba(0, 212, 255, 0.45);
+	padding-bottom: 12px;
+}
+
+.manager-team-metrics {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.manager-team-overdue {
+	color: var(--red);
+	border-color: rgba(248, 113, 113, 0.42) !important;
+	background: rgba(248, 113, 113, 0.1) !important;
+}
+
+.manager-team-member-strip {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+	align-items: center;
+}
+
+.manager-team-member-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 9px;
+	border-radius: 999px;
+	font-size: 0.74rem;
+	font-weight: 600;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--white);
+}
+
+.manager-team-member-strip small {
+	font-size: 0.72rem;
+	color: var(--muted);
+}
+
+.manager-team-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: stretch;
+	min-width: 140px;
+}
+
+.manager-team-health-pill {
+	font-size: 0.68rem;
+	font-weight: 700;
+	padding: 3px 8px;
+	border-radius: 999px;
+	letter-spacing: 0.02em;
+	border: 1px solid transparent;
+}
+
+.manager-team-health-pill.healthy {
+	background: rgba(74, 222, 128, 0.12);
+	border-color: rgba(74, 222, 128, 0.34);
+	color: var(--green);
+}
+
+.manager-team-health-pill.attention {
+	background: rgba(248, 113, 113, 0.12);
+	border-color: rgba(248, 113, 113, 0.34);
+	color: var(--red);
+}
+
+.manager-team-details {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 10px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.manager-team-details-column {
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	padding: 10px;
+	background: rgba(255, 255, 255, 0.02);
+	display: grid;
+	gap: 8px;
+	max-height: 280px;
+	overflow-y: auto;
+}
+
+.manager-team-details-column h4 {
+	margin: 0;
+	font-size: 0.8rem;
+	color: var(--muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.manager-team-list-item {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.manager-team-list-item strong {
+	font-size: 0.84rem;
+	font-weight: 600;
+	color: var(--white);
+}
+
+.manager-team-list-item small {
+	font-size: 0.72rem;
+	color: var(--muted);
+}
+
+.manager-team-list-item-member {
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+}
+
+.manager-team-list-item-member .ceo-btn-danger {
+	font-size: 0.72rem;
+	padding: 6px 10px;
+	min-height: 30px;
+}
+
+.manager-team-empty {
+	margin: 0;
+	font-size: 0.75rem;
+	color: var(--muted);
+}
+
+.manager-team-modal {
+	max-width: 560px;
+}
+
+.manager-team-warning {
+	display: grid;
+	gap: 4px;
+	padding: 10px;
+	border-radius: 10px;
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.manager-team-warning strong {
+	font-size: 0.76rem;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+
+.manager-team-warning span {
+	font-size: 0.8rem;
+	color: var(--white);
+}
+
+.manager-team-warning.warning {
+	border-color: rgba(248, 113, 113, 0.4);
+	background: rgba(248, 113, 113, 0.1);
+}
+
+.manager-team-warning.warning strong {
+	color: var(--red);
+}
+
+.manager-team-warning.safe {
+	border-color: rgba(74, 222, 128, 0.38);
+	background: rgba(74, 222, 128, 0.08);
+}
+
+.manager-team-warning.safe strong {
+	color: var(--green);
+}
+
+@media (max-width: 1024px) {
+	.manager-teams-panel .manager-teams-filters,
+	.manager-team-details {
+		grid-template-columns: 1fr;
+	}
+
+	.manager-team-actions {
+		min-width: 0;
+		width: 100%;
+	}
 }

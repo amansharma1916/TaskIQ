@@ -20,6 +20,7 @@ import {
   updateTaskStatus,
 } from '../../../services/tasks'
 import { assignTeams, createProject, revokeTeams, updateProject } from '../../../services/projects'
+import { addTeamMember, removeTeamMember } from '../../../services/teams'
 import type { ApiProjectStatus, ApiTaskStatus } from '../CEOs/types/api.types'
 import type { ManagerPanelId, ManagerTaskQuery } from './types/manager.types'
 
@@ -44,6 +45,8 @@ const Dashboard_Manager = () => {
   const [projectActionError, setProjectActionError] = useState('')
   const [isTaskMutating, setIsTaskMutating] = useState(false)
   const [taskActionError, setTaskActionError] = useState('')
+  const [isTeamMutating, setIsTeamMutating] = useState(false)
+  const [teamActionError, setTeamActionError] = useState('')
   const {
     projects,
     tasks,
@@ -58,6 +61,9 @@ const Dashboard_Manager = () => {
     reloadTasks,
     state,
     reloadAll,
+    isActivityLoadingMore,
+    canLoadMoreActivity,
+    loadMoreActivity,
   } = useManagerDashboardData()
 
   const user = getAuthUser()
@@ -162,6 +168,7 @@ const Dashboard_Manager = () => {
     dueDate?: string | null
     projectId: string
     teamId?: string | null
+    assigneeMemberId?: string | null
   }) => {
     setTaskActionError('')
     setIsTaskMutating(true)
@@ -186,6 +193,7 @@ const Dashboard_Manager = () => {
       dueDate?: string | null
       projectId: string
       teamId?: string | null
+      assigneeMemberId?: string | null
     }
   ) => {
     setTaskActionError('')
@@ -231,6 +239,34 @@ const Dashboard_Manager = () => {
 
   const handleTaskQueryChange = (updater: (prev: ManagerTaskQuery) => ManagerTaskQuery) => {
     setTaskQuery(updater)
+  }
+
+  const handleAddTeamMember = async (teamId: string, memberId: string) => {
+    setTeamActionError('')
+    setIsTeamMutating(true)
+
+    try {
+      await addTeamMember(teamId, memberId)
+      await reloadAll()
+    } catch (error) {
+      setTeamActionError(error instanceof Error ? error.message : 'Failed to add member to team')
+    } finally {
+      setIsTeamMutating(false)
+    }
+  }
+
+  const handleRemoveTeamMember = async (teamId: string, memberId: string) => {
+    setTeamActionError('')
+    setIsTeamMutating(true)
+
+    try {
+      await removeTeamMember(teamId, memberId)
+      await reloadAll()
+    } catch (error) {
+      setTeamActionError(error instanceof Error ? error.message : 'Failed to revoke member from team')
+    } finally {
+      setIsTeamMutating(false)
+    }
   }
 
   return (
@@ -285,11 +321,36 @@ const Dashboard_Manager = () => {
             isActive={activePanel === 'my-assignments'}
             isLoading={state.isLoading}
             error={state.error}
+            actionError={taskActionError}
+            isMutating={isTaskMutating}
+            members={members}
             assignedToMe={myAssignedTasks}
-            teamBacklog={teamBacklogTasks}
+            teamTasks={teamBacklogTasks}
+            onUpdateStatus={(taskId, status) => void handleTaskStatusUpdate(taskId, status)}
+            onAssign={(taskId, assigneeMemberId) => void handleTaskAssigneeUpdate(taskId, assigneeMemberId)}
           />
-          <ManagerTeamsPanel isActive={activePanel === 'teams'} isLoading={state.isLoading} error={state.error} teams={teams} />
-          <ManagerActivityPanel isActive={activePanel === 'activity'} isLoading={state.isLoading} error={state.error} activity={activity} />
+          <ManagerTeamsPanel
+            isActive={activePanel === 'teams'}
+            isLoading={state.isLoading}
+            error={state.error}
+            actionError={teamActionError}
+            isMutating={isTeamMutating}
+            teams={teams}
+            projects={projects}
+            tasks={tasks}
+            members={members}
+            onAddMember={(teamId, memberId) => void handleAddTeamMember(teamId, memberId)}
+            onRevokeMember={(teamId, memberId) => void handleRemoveTeamMember(teamId, memberId)}
+          />
+          <ManagerActivityPanel
+            isActive={activePanel === 'activity'}
+            isLoading={state.isLoading}
+            error={state.error}
+            activity={activity}
+            isLoadingMore={isActivityLoadingMore}
+            canLoadMore={canLoadMoreActivity}
+            onLoadMore={() => void loadMoreActivity()}
+          />
         </section>
       </main>
     </div>

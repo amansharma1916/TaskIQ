@@ -173,7 +173,7 @@ router.post("/create", authorizeRoles("CEO", "Manager"), authorizeCapability("ta
       return;
     }
 
-    const { title, description, status, priority, dueDate, projectId, teamId } = req.body;
+    const { title, description, status, priority, dueDate, projectId, teamId, assigneeMemberId } = req.body;
 
     if (!title || typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ message: "title is required" });
@@ -213,6 +213,18 @@ router.post("/create", authorizeRoles("CEO", "Manager"), authorizeCapability("ta
       return res.status(400).json({ message: "teamId is required for team-scoped manager task creation" });
     }
 
+    if (assigneeMemberId !== undefined && assigneeMemberId !== null && assigneeMemberId !== "" && !parseObjectIdOrNull(assigneeMemberId)) {
+      return res.status(400).json({ message: "assigneeMemberId must be a valid member id or null" });
+    }
+
+    let assignee = null;
+    if (assigneeMemberId) {
+      assignee = await ensureCompanyMember(assigneeMemberId, companyId);
+      if (!assignee) {
+        return res.status(404).json({ message: "Assignee member not found" });
+      }
+    }
+
     if (status && !isValidStatus(status)) {
       return res.status(400).json({ message: "Invalid status value" });
     }
@@ -229,7 +241,7 @@ router.post("/create", authorizeRoles("CEO", "Manager"), authorizeCapability("ta
       dueDate: parseDateOrNull(dueDate),
       projectId: parsedProjectId,
       teamId: parsedTeamId,
-      assignee: null,
+      assignee: assignee?._id ?? null,
       companyId,
       createdBy: req.user?.userId,
     });
@@ -461,16 +473,6 @@ router.post("/bulk/assign", authorizeRoles("CEO", "Manager"), authorizeCapabilit
 
     const successIds = [];
     for (const task of eligibleTasks) {
-      if (!task.teamId) {
-        failed.push({ taskId: String(task._id), reason: "Task must be linked to a team before assignment" });
-        continue;
-      }
-
-      if (assignee?._id && (!assignee.memberTeam || String(assignee.memberTeam) !== String(task.teamId))) {
-        failed.push({ taskId: String(task._id), reason: "Assignee must belong to task team" });
-        continue;
-      }
-
       task.assignee = assignee?._id ?? null;
       await task.save();
       successIds.push(String(task._id));
@@ -660,7 +662,7 @@ router.put("/:id", authorizeRoles("CEO", "Manager"), authorizeCapability("tasks:
       return res.status(404).json({ message: "Task not found" });
     }
 
-    const { title, description, status, priority, dueDate, projectId, teamId } = req.body;
+    const { title, description, status, priority, dueDate, projectId, teamId, assigneeMemberId } = req.body;
     const updates = {};
     const nextProjectId = projectId !== undefined ? parseObjectIdOrNull(projectId) : existingTask.projectId;
 
@@ -743,7 +745,21 @@ router.put("/:id", authorizeRoles("CEO", "Manager"), authorizeCapability("tasks:
       }
     }
 
-    updates.assignee = null;
+    if (assigneeMemberId !== undefined) {
+      if (assigneeMemberId !== null && assigneeMemberId !== "" && !parseObjectIdOrNull(assigneeMemberId)) {
+        return res.status(400).json({ message: "assigneeMemberId must be a valid member id or null" });
+      }
+
+      if (assigneeMemberId) {
+        const assignee = await ensureCompanyMember(assigneeMemberId, companyId);
+        if (!assignee) {
+          return res.status(404).json({ message: "Assignee member not found" });
+        }
+        updates.assignee = assignee._id;
+      } else {
+        updates.assignee = null;
+      }
+    }
 
     const updatedTask = await Tasks.findOneAndUpdate(
       applyTaskScopeFilter(req, { _id: req.params.id, companyId }),
@@ -835,19 +851,11 @@ router.patch("/:id/assign", authorizeRoles("CEO", "Manager"), authorizeCapabilit
       return res.status(404).json({ message: "Task not found" });
     }
 
-    if (!task.teamId) {
-      return res.status(400).json({ message: "Task must be linked to a team before assignment" });
-    }
-
     let assignee = null;
     if (assigneeMemberId) {
       assignee = await ensureCompanyMember(assigneeMemberId, companyId);
       if (!assignee) {
         return res.status(404).json({ message: "Assignee member not found" });
-      }
-
-      if (!assignee.memberTeam || String(assignee.memberTeam) !== String(task.teamId)) {
-        return res.status(400).json({ message: "Assignee must belong to task team" });
       }
     }
 
