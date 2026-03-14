@@ -129,6 +129,25 @@ router.get("/", authorizeRoles("CEO", "Manager"), async (req, res) => {
   }
 });
 
+router.get("/me", async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const member = await Members.findOne({ companyId, userId: req.user?.userId }).populate("memberTeam");
+
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    return res.json(member);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
 router.delete("/:id", authorizeRoles("CEO"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);

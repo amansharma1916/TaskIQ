@@ -31,7 +31,8 @@ export const ROLE_CONFIG: Record<RoleId, RoleConfig> = {
   Employee: {
     id: ROLE_IDS.Employee,
     label: "Employee",
-    defaultRoute: "/home",
+    defaultRoute: "/employee/dashboard",
+    dashboardRoute: "/employee/dashboard",
   },
   HR: {
     id: ROLE_IDS.HR,
