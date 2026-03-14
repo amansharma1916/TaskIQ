@@ -47,4 +47,6 @@ export const mapApiTeamToManagerTeamCard = (team: ApiTeam): ManagerTeamCard => (
 	description: team.teamDescription || 'No team description available yet.',
 	tag: team.teamTags?.[0] || 'Team',
 	totalMembers: team.totalMembers ?? team.teamMembers?.length ?? 0,
+	leadMemberId: typeof team.teamLead === 'string' ? team.teamLead : team.teamLead?._id ?? null,
+	leadMemberName: typeof team.teamLead === 'string' ? null : team.teamLead?.memberName ?? null,
 })

@@ -63,6 +63,8 @@ export type ManagerTeamCard = {
 	description: string
 	tag: string
 	totalMembers: number
+	leadMemberId: string | null
+	leadMemberName: string | null
 }
 
 export type ManagerActivityItem = {

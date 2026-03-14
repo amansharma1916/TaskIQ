@@ -19,6 +19,13 @@ export type ApiTeam = {
 		_id: string
 		memberName?: string
 	}>
+	teamLead?:
+		| string
+		| {
+				_id: string
+				memberName?: string
+		  }
+		| null
 }
 
 export type ApiProjectStatus = 'planning' | 'active' | 'review' | 'completed' | 'blocked'

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
 import '../../../styles/user/CEOs/TaskPanel.css'
@@ -20,7 +20,7 @@ import {
   updateTaskStatus,
 } from '../../../services/tasks'
 import { assignTeams, createProject, revokeTeams, updateProject } from '../../../services/projects'
-import { addTeamMember, removeTeamMember } from '../../../services/teams'
+import { addTeamMember, createTeam, removeTeamMember, sendManagerInvite, setTeamLead } from '../../../services/teams'
 import type { ApiProjectStatus, ApiTaskStatus } from '../CEOs/types/api.types'
 import type { ManagerPanelId, ManagerTaskQuery } from './types/manager.types'
 
@@ -47,6 +47,21 @@ const Dashboard_Manager = () => {
   const [taskActionError, setTaskActionError] = useState('')
   const [isTeamMutating, setIsTeamMutating] = useState(false)
   const [teamActionError, setTeamActionError] = useState('')
+  const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  useEffect(() => {
+    if (!actionAlert) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setActionAlert(null)
+    }, 2500)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [actionAlert])
   const {
     projects,
     tasks,
@@ -269,6 +284,61 @@ const Dashboard_Manager = () => {
     }
   }
 
+  const handleCreateTeam = async (payload: {
+    teamName: string
+    teamDescription?: string
+    teamTags?: string[]
+  }) => {
+    setTeamActionError('')
+    setIsTeamMutating(true)
+
+    try {
+      await createTeam(payload)
+      await reloadAll()
+    } catch (error) {
+      setTeamActionError(error instanceof Error ? error.message : 'Failed to create team')
+    } finally {
+      setIsTeamMutating(false)
+    }
+  }
+
+  const handleSetTeamLead = async (teamId: string, memberId: string) => {
+    setTeamActionError('')
+    setIsTeamMutating(true)
+
+    try {
+      await setTeamLead(teamId, memberId)
+      await reloadAll()
+    } catch (error) {
+      setTeamActionError(error instanceof Error ? error.message : 'Failed to set team lead')
+    } finally {
+      setIsTeamMutating(false)
+    }
+  }
+
+  const handleSendInvite = async (payload: {
+    name: string
+    email: string
+    role: 'Manager' | 'Employee'
+    scopeTeamIds: string[]
+  }) => {
+    setTeamActionError('')
+    setIsTeamMutating(true)
+
+    try {
+      await sendManagerInvite(payload)
+      await reloadAll()
+      setActionAlert({ type: 'success', message: 'Invite sent successfully.' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send invite'
+      setTeamActionError(message)
+      setActionAlert({ type: 'error', message })
+      throw error
+    } finally {
+      setIsTeamMutating(false)
+    }
+  }
+
   return (
     <div className="ceo-dashboard-root">
       <ManagerSidebar
@@ -287,6 +357,15 @@ const Dashboard_Manager = () => {
           onRefresh={() => void reloadAll()}
           onOpenActivity={() => setActivePanel('activity')}
         />
+
+        {actionAlert ? (
+          <div className={`ceo-action-alert ${actionAlert.type === 'success' ? 'success' : 'error'}`} role="status">
+            <span>{actionAlert.message}</span>
+            <button aria-label="Dismiss alert" onClick={() => setActionAlert(null)} type="button">
+              X
+            </button>
+          </div>
+        ) : null}
 
         <section className="ceo-content">
           <ManagerProjectsPanel
@@ -345,6 +424,9 @@ const Dashboard_Manager = () => {
             members={members}
             onAddMember={(teamId, memberId) => void handleAddTeamMember(teamId, memberId)}
             onRevokeMember={(teamId, memberId) => void handleRemoveTeamMember(teamId, memberId)}
+            onCreateTeam={(payload) => void handleCreateTeam(payload)}
+            onSetTeamLead={(teamId, memberId) => void handleSetTeamLead(teamId, memberId)}
+            onSendInvite={(payload) => handleSendInvite(payload)}
           />
           <ManagerActivityPanel
             isActive={activePanel === 'activity'}

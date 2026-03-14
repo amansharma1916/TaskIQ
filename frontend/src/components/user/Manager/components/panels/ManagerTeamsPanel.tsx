@@ -14,12 +14,23 @@ type ManagerTeamsPanelProps = {
 	members: ManagerMemberOption[]
 	onAddMember: (teamId: string, memberId: string) => void
 	onRevokeMember: (teamId: string, memberId: string) => void
+	onCreateTeam: (payload: { teamName: string; teamDescription?: string; teamTags?: string[] }) => void
+	onSetTeamLead: (teamId: string, memberId: string) => void
+	onSendInvite: (payload: {
+		name: string
+		email: string
+		role: 'Manager' | 'Employee'
+		scopeTeamIds: string[]
+	}) => Promise<void>
 }
 
 type TeamHealth = 'healthy' | 'attention'
 type TeamModalState =
 	| { type: 'add'; teamId: string }
 	| { type: 'revoke'; teamId: string }
+	| { type: 'set-lead'; teamId: string }
+	| { type: 'create-team' }
+	| { type: 'invite' }
 	| null
 
 type TeamView = {
@@ -63,6 +74,9 @@ const ManagerTeamsPanel = ({
 	members,
 	onAddMember,
 	onRevokeMember,
+	onCreateTeam,
+	onSetTeamLead,
+	onSendInvite,
 }: ManagerTeamsPanelProps) => {
 	const [query, setQuery] = useState('')
 	const [tagFilter, setTagFilter] = useState('all')
@@ -70,6 +84,10 @@ const ManagerTeamsPanel = ({
 	const [expandedTeamIds, setExpandedTeamIds] = useState<string[]>([])
 	const [modalState, setModalState] = useState<TeamModalState>(null)
 	const [selectedMemberId, setSelectedMemberId] = useState('')
+	const [createTeamForm, setCreateTeamForm] = useState({ teamName: '', teamDescription: '', teamTags: '' })
+	const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: 'Employee' as 'Manager' | 'Employee' })
+	const [selectedInviteTeamIds, setSelectedInviteTeamIds] = useState<string[]>([])
+	const [modalError, setModalError] = useState('')
 
 	const tagOptions = useMemo(() => {
 		const tags = new Set<string>()
@@ -126,7 +144,10 @@ const ManagerTeamsPanel = ({
 	}, [teamViews, query, tagFilter, healthFilter])
 
 	const selectedTeamView = useMemo(
-		() => (modalState ? teamViews.find((item) => item.team.id === modalState.teamId) ?? null : null),
+		() =>
+			modalState && 'teamId' in modalState
+				? teamViews.find((item) => item.team.id === modalState.teamId) ?? null
+				: null,
 		[modalState, teamViews]
 	)
 
@@ -142,6 +163,14 @@ const ManagerTeamsPanel = ({
 
 	const revokableMembers = useMemo(() => {
 		if (!selectedTeamView || modalState?.type !== 'revoke') {
+			return []
+		}
+
+		return [...selectedTeamView.membersInTeam].sort((left, right) => left.name.localeCompare(right.name))
+	}, [selectedTeamView, modalState])
+
+	const leadEligibleMembers = useMemo(() => {
+		if (!selectedTeamView || modalState?.type !== 'set-lead') {
 			return []
 		}
 
@@ -171,16 +200,38 @@ const ManagerTeamsPanel = ({
 	const closeModal = () => {
 		setModalState(null)
 		setSelectedMemberId('')
+		setModalError('')
+		setCreateTeamForm({ teamName: '', teamDescription: '', teamTags: '' })
+		setInviteForm({ name: '', email: '', role: 'Employee' })
+		setSelectedInviteTeamIds([])
 	}
 
 	const openAddMemberModal = (teamId: string) => {
 		setModalState({ type: 'add', teamId })
 		setSelectedMemberId('')
+		setModalError('')
 	}
 
 	const openRevokeMemberModal = (teamId: string) => {
 		setModalState({ type: 'revoke', teamId })
 		setSelectedMemberId('')
+		setModalError('')
+	}
+
+	const openSetLeadModal = (teamId: string) => {
+		setModalState({ type: 'set-lead', teamId })
+		setSelectedMemberId('')
+		setModalError('')
+	}
+
+	const openCreateTeamModal = () => {
+		setModalState({ type: 'create-team' })
+		setModalError('')
+	}
+
+	const openInviteModal = () => {
+		setModalState({ type: 'invite' })
+		setModalError('')
 	}
 
 	const toggleTeamExpanded = (teamId: string) => {
@@ -213,6 +264,67 @@ const ManagerTeamsPanel = ({
 		closeModal()
 	}
 
+	const submitSetLead = () => {
+		if (!selectedTeamView || !selectedMemberId) {
+			setModalError('Please select a team member.')
+			return
+		}
+
+		onSetTeamLead(selectedTeamView.team.id, selectedMemberId)
+		closeModal()
+	}
+
+	const submitCreateTeam = () => {
+		if (!createTeamForm.teamName.trim()) {
+			setModalError('Team name is required.')
+			return
+		}
+
+		const parsedTags = createTeamForm.teamTags
+			.split(',')
+			.map((tag) => tag.trim())
+			.filter(Boolean)
+
+		onCreateTeam({
+			teamName: createTeamForm.teamName.trim(),
+			teamDescription: createTeamForm.teamDescription.trim(),
+			teamTags: parsedTags,
+		})
+		closeModal()
+	}
+
+	const toggleInviteTeam = (teamId: string) => {
+		setSelectedInviteTeamIds((current) =>
+			current.includes(teamId) ? current.filter((id) => id !== teamId) : [...current, teamId]
+		)
+	}
+
+	const submitInvite = async () => {
+		if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+			setModalError('Name and email are required.')
+			return
+		}
+
+		if (selectedInviteTeamIds.length === 0) {
+			setModalError('Select at least one target team.')
+			return
+		}
+
+		setModalError('')
+		try {
+			await onSendInvite({
+				name: inviteForm.name.trim(),
+				email: inviteForm.email.trim(),
+				role: inviteForm.role,
+				scopeTeamIds: selectedInviteTeamIds,
+			})
+		} catch {
+			// Parent handler raises the global action alert; close modal on completion.
+		} finally {
+			closeModal()
+		}
+	}
+
 	useEffect(() => {
 		const hasModalOpen = Boolean(modalState)
 		if (!hasModalOpen) {
@@ -239,6 +351,14 @@ const ManagerTeamsPanel = ({
 		<section className="ceo-panel active manager-teams-panel">
 			<div className="ceo-section-head">
 				<h2>Teams</h2>
+				<div className="ceo-row" style={{ gap: 10 }}>
+					<button className="ceo-btn-outline" type="button" onClick={openInviteModal} disabled={isMutating || teams.length === 0}>
+						Invite Member
+					</button>
+					<button className="ceo-btn-primary" type="button" onClick={openCreateTeamModal} disabled={isMutating}>
+						Create Team
+					</button>
+				</div>
 			</div>
 
 			{!isLoading && !error ? (
@@ -333,6 +453,12 @@ const ManagerTeamsPanel = ({
 										<span>Projects: {item.assignedProjects.length}</span>
 										<span>Tasks: {item.assignedTasks.length}</span>
 										<span>Open: {item.openTasks}</span>
+										<span>
+											Lead:{' '}
+											{item.team.leadMemberName ||
+												item.membersInTeam.find((member) => member.id === item.team.leadMemberId)?.name ||
+												'Unassigned'}
+										</span>
 										<span className={item.overdueTasks > 0 ? 'manager-team-overdue' : ''}>Overdue: {item.overdueTasks}</span>
 									</div>
 									<div className="manager-team-member-strip">
@@ -350,6 +476,9 @@ const ManagerTeamsPanel = ({
 									</button>
 									<button className="ceo-btn-danger" type="button" onClick={() => openRevokeMemberModal(item.team.id)} disabled={isMutating || item.membersInTeam.length === 0}>
 										Revoke Member
+									</button>
+									<button className="ceo-btn-outline" type="button" onClick={() => openSetLeadModal(item.team.id)} disabled={isMutating || item.membersInTeam.length === 0}>
+										Set Lead
 									</button>
 									<button className="ceo-btn-outline" type="button" onClick={() => toggleTeamExpanded(item.team.id)}>
 										{isExpanded ? 'Hide details' : 'View details'}
@@ -483,6 +612,175 @@ const ManagerTeamsPanel = ({
 							</button>
 							<button className="ceo-btn-danger" type="button" onClick={submitRevokeMember} disabled={isMutating || !selectedMemberId || revokableMembers.length === 0}>
 								Confirm Revoke
+							</button>
+						</div>
+					</div>
+				</div>
+			) : null}
+
+			{modalState?.type === 'set-lead' && selectedTeamView ? (
+				<div
+					className="manager-project-modal-overlay"
+					role="presentation"
+					onClick={(event) => {
+						if (event.target === event.currentTarget && !isMutating) {
+							closeModal()
+						}
+					}}
+				>
+					<div className="ceo-modal manager-project-modal manager-team-modal" role="dialog" aria-modal="true" aria-label="Set team lead">
+						<h2>Set Lead for {selectedTeamView.team.name}</h2>
+						<p>Select a team member to become the lead.</p>
+						{modalError ? <div className="manager-state manager-state-error">{modalError}</div> : null}
+						<label className="ceo-field">
+							<span>Team member</span>
+							<select value={selectedMemberId} onChange={(event) => setSelectedMemberId(event.target.value)}>
+								<option value="">Select member</option>
+								{leadEligibleMembers.map((member) => (
+									<option key={member.id} value={member.id}>
+										{member.name}
+									</option>
+								))}
+							</select>
+						</label>
+						<div className="ceo-row ceo-modal-actions">
+							<button className="ceo-btn-outline" type="button" onClick={closeModal}>
+								Cancel
+							</button>
+							<button className="ceo-btn-primary" type="button" onClick={submitSetLead} disabled={isMutating || !selectedMemberId || leadEligibleMembers.length === 0}>
+								Set Lead
+							</button>
+						</div>
+					</div>
+				</div>
+			) : null}
+
+			{modalState?.type === 'create-team' ? (
+				<div
+					className="manager-project-modal-overlay"
+					role="presentation"
+					onClick={(event) => {
+						if (event.target === event.currentTarget && !isMutating) {
+							closeModal()
+						}
+					}}
+				>
+					<div className="ceo-modal manager-project-modal manager-team-modal" role="dialog" aria-modal="true" aria-label="Create team">
+						<h2>Create Team</h2>
+						<p>Add a new team for manager staffing and assignment workflows.</p>
+						{modalError ? <div className="manager-state manager-state-error">{modalError}</div> : null}
+						<div className="manager-project-modal-grid">
+							<label className="ceo-field">
+								<span>Team name</span>
+								<input
+									type="text"
+									value={createTeamForm.teamName}
+									onChange={(event) => setCreateTeamForm((prev) => ({ ...prev, teamName: event.target.value }))}
+									placeholder="e.g. Platform Delivery"
+								/>
+							</label>
+							<label className="ceo-field">
+								<span>Description</span>
+								<input
+									type="text"
+									value={createTeamForm.teamDescription}
+									onChange={(event) => setCreateTeamForm((prev) => ({ ...prev, teamDescription: event.target.value }))}
+									placeholder="What this team is responsible for"
+								/>
+							</label>
+							<label className="ceo-field">
+								<span>Tags (comma separated)</span>
+								<input
+									type="text"
+									value={createTeamForm.teamTags}
+									onChange={(event) => setCreateTeamForm((prev) => ({ ...prev, teamTags: event.target.value }))}
+									placeholder="backend, qa, operations"
+								/>
+							</label>
+						</div>
+						<div className="ceo-row ceo-modal-actions">
+							<button className="ceo-btn-outline" type="button" onClick={closeModal}>
+								Cancel
+							</button>
+							<button className="ceo-btn-primary" type="button" onClick={submitCreateTeam} disabled={isMutating || !createTeamForm.teamName.trim()}>
+								Create Team
+							</button>
+						</div>
+					</div>
+				</div>
+			) : null}
+
+			{modalState?.type === 'invite' ? (
+				<div
+					className="manager-project-modal-overlay"
+					role="presentation"
+					onClick={(event) => {
+						if (event.target === event.currentTarget && !isMutating) {
+							closeModal()
+						}
+					}}
+				>
+					<div className="ceo-modal manager-project-modal manager-team-modal" role="dialog" aria-modal="true" aria-label="Invite member">
+						<h2>Invite Team Member</h2>
+						<p>Invite a Manager or Employee and scope access to selected teams.</p>
+						{modalError ? <div className="manager-state manager-state-error">{modalError}</div> : null}
+						<div className="manager-project-modal-grid">
+							<label className="ceo-field">
+								<span>Name</span>
+								<input
+									type="text"
+									value={inviteForm.name}
+									onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))}
+									placeholder="Full name"
+								/>
+							</label>
+							<label className="ceo-field">
+								<span>Email</span>
+								<input
+									type="email"
+									value={inviteForm.email}
+									onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))}
+									placeholder="name@company.com"
+								/>
+							</label>
+							<label className="ceo-field">
+								<span>Role</span>
+								<select
+									value={inviteForm.role}
+									onChange={(event) =>
+										setInviteForm((prev) => ({ ...prev, role: event.target.value as 'Manager' | 'Employee' }))
+									}
+								>
+									<option value="Employee">Employee</option>
+									<option value="Manager">Manager</option>
+								</select>
+							</label>
+						</div>
+						<label className="ceo-field">
+							<span>Target teams</span>
+							<div className="manager-filter-chip-row">
+								{teams.map((team) => {
+									const isSelected = selectedInviteTeamIds.includes(team.id)
+									return (
+										<button
+											key={team.id}
+											type="button"
+											className={isSelected ? 'manager-filter-chip' : 'ceo-btn-outline'}
+											onClick={() => toggleInviteTeam(team.id)}
+											disabled={isMutating}
+										>
+											{team.name}
+										</button>
+									)
+								})}
+							</div>
+						</label>
+						<div className="ceo-row ceo-modal-actions">
+							<button className="ceo-btn-outline" type="button" onClick={closeModal}>
+								Cancel
+							</button>
+							<button className="ceo-btn-primary" type="button" onClick={() => void submitInvite()} disabled={isMutating || teams.length === 0}>
+								{isMutating ? 'Inviting...' : 'Send Invite'}
 							</button>
 						</div>
 					</div>
