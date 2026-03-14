@@ -110,10 +110,10 @@ const Dashboard_Employee = () => {
             type="button"
             onClick={() => setShowSignOutMenu((prev) => !prev)}
           >
-            <span className="ceo-avatar">{displayUserInitials}</span>
-            <span>
+            <span className="ceo-avatar employee-avatar">{displayUserInitials}</span>
+            <span className="employee-user-meta">
               <strong className="ceo-user-name">{displayUserName}</strong>
-              <small className="ceo-user-role">Employee</small>
+              <small className="ceo-user-role employee-user-role-line">Employee • {displayCompanyName}</small>
             </span>
           </button>
         </div>
