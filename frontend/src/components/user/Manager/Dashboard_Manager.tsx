@@ -282,7 +282,11 @@ const Dashboard_Manager = () => {
       />
 
       <main className="ceo-main">
-        <ManagerTopbar activePanel={activePanel} onRefresh={() => void reloadAll()} />
+        <ManagerTopbar
+          activePanel={activePanel}
+          onRefresh={() => void reloadAll()}
+          onOpenActivity={() => setActivePanel('activity')}
+        />
 
         <section className="ceo-content">
           <ManagerProjectsPanel

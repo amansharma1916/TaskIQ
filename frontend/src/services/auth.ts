@@ -11,6 +11,8 @@ export type AuthUser = {
   companyName?: string | null;
   teamSize?: string | null;
   role?: UserRole;
+  managerScope?: 'company' | 'team';
+  managerTeamIds?: string[];
 };
 
 export type AuthSession = {
