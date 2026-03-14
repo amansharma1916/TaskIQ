@@ -79,7 +79,7 @@ router.post("/invite", authenticateJWT, roleResolution, authorizeRoles("CEO", "M
       resolvedScopeTeamIds = [];
     }
 
-    if (resolvedScopeType === "team" && resolvedScopeTeamIds.length === 0) {
+    if (!isCeo(req) && resolvedScopeType === "team" && resolvedScopeTeamIds.length === 0) {
       return res.status(400).json({ message: "scopeTeamIds must include at least one valid team id for team scoped invite" });
     }
 
