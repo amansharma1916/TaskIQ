@@ -113,7 +113,7 @@ router.post("/add", authorizeRoles("CEO", "Manager"), async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {

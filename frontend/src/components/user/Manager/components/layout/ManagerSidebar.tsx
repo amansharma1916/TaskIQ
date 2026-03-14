@@ -13,6 +13,7 @@ type ManagerSidebarProps = {
 const panelItems: Array<{ id: ManagerPanelId; label: string }> = [
 	{ id: 'projects', label: 'Projects' },
 	{ id: 'tasks', label: 'Tasks' },
+	{ id: 'members', label: 'Members' },
 	{ id: 'my-assignments', label: 'My Assignments' },
 	{ id: 'teams', label: 'Teams' },
 	{ id: 'activity', label: 'Activity' },

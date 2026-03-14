@@ -8,6 +8,7 @@ import ManagerSidebar from './components/layout/ManagerSidebar'
 import ManagerTopbar from './components/layout/ManagerTopbar'
 import ManagerProjectsPanel from './components/panels/ManagerProjectsPanel'
 import ManagerTasksPanel from './components/panels/ManagerTasksPanel'
+import ManagerMembersPanel from './components/panels/ManagerMembersPanel'
 import ManagerTeamsPanel from './components/panels/ManagerTeamsPanel'
 import ManagerActivityPanel from './components/panels/ManagerActivityPanel'
 import ManagerMyAssignmentsPanel from './components/panels/ManagerMyAssignmentsPanel'
@@ -411,6 +412,13 @@ const Dashboard_Manager = () => {
             teamTasks={teamBacklogTasks}
             onUpdateStatus={(taskId, status) => void handleTaskStatusUpdate(taskId, status)}
             onAssign={(taskId, assigneeMemberId) => void handleTaskAssigneeUpdate(taskId, assigneeMemberId)}
+          />
+          <ManagerMembersPanel
+            isActive={activePanel === 'members'}
+            isLoading={state.isLoading}
+            error={state.error}
+            members={members}
+            teams={teams}
           />
           <ManagerTeamsPanel
             isActive={activePanel === 'teams'}

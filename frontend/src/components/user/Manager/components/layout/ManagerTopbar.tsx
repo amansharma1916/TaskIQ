@@ -9,6 +9,7 @@ type ManagerTopbarProps = {
 const panelTitles: Record<ManagerPanelId, string> = {
 	projects: 'Project Oversight',
 	tasks: 'Task Execution',
+	members: 'Member Directory',
 	'my-assignments': 'My Assignments',
 	teams: 'Team Coordination',
 	activity: 'Recent Activity',
