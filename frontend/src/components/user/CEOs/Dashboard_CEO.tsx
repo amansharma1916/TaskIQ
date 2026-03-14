@@ -141,6 +141,7 @@ const Dashboard_CEO = () => {
 		name: '',
 		email: '',
 		role: 'Employee' as 'Manager' | 'Employee',
+		teamId: '',
 	})
 	const [inviteError, setInviteError] = useState('')
 	const [isSendingInvite, setIsSendingInvite] = useState(false)
@@ -546,7 +547,7 @@ const Dashboard_CEO = () => {
 			setCreateTeamError('')
 		}
 		if (modalId === 'invite') {
-			setInviteForm({ name: '', email: '', role: 'Employee' })
+			setInviteForm({ name: '', email: '', role: 'Employee', teamId: presetEntityId ?? '' })
 			setInviteError('')
 		}
 		if (modalId === 'addMember') {
@@ -946,16 +947,24 @@ const Dashboard_CEO = () => {
 		setIsSendingInvite(true)
 
 		try {
+			const invitePayload = {
+				name: inviteForm.name.trim(),
+				email: inviteForm.email.trim(),
+				role: inviteForm.role,
+				...(inviteForm.teamId
+					? {
+							scopeType: 'team' as const,
+							scopeTeamIds: [inviteForm.teamId],
+					  }
+					: {}),
+			}
+
 			const response = await authorizedFetch('/api/invite/invite', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({
-					name: inviteForm.name.trim(),
-					email: inviteForm.email.trim(),
-					role: inviteForm.role,
-				}),
+				body: JSON.stringify(invitePayload),
 			})
 
 			const result = await response.json().catch(() => null)
@@ -1435,6 +1444,27 @@ const Dashboard_CEO = () => {
 										>
 											<option value="Employee">Employee</option>
 											<option value="Manager">Manager</option>
+										</select>
+									</label>
+									<label>
+										Team (optional)
+										<select
+											value={inviteForm.teamId}
+											onChange={(event) =>
+												setInviteForm((prev) => ({
+													...prev,
+													teamId: event.target.value,
+												}))
+											}
+										>
+											<option value="">
+												Unassigned
+											</option>
+											{teamsData.map((team) => (
+												<option key={team.id} value={team.id}>
+													{team.name}
+												</option>
+											))}
 										</select>
 									</label>
 								</>
