@@ -1,7 +1,7 @@
 import type { ApiTaskPriority, ApiTaskStatus, TaskListSortBy, TaskListSortOrder } from '../../CEOs/types/api.types'
 import type { ApiProjectStatus } from '../../CEOs/types/api.types'
 
-export type ManagerPanelId = 'projects' | 'tasks' | 'teams' | 'activity' | 'my-assignments'
+export type ManagerPanelId = 'projects' | 'tasks' | 'members' | 'teams' | 'activity' | 'my-assignments'
 
 export type ManagerProjectCard = {
 	id: string
@@ -63,6 +63,8 @@ export type ManagerTeamCard = {
 	description: string
 	tag: string
 	totalMembers: number
+	leadMemberId: string | null
+	leadMemberName: string | null
 }
 
 export type ManagerActivityItem = {

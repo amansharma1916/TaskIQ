@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ApiProjectStatus } from '../../../CEOs/types/api.types'
 import { statusClassMap } from '../../../CEOs/utils/constants'
 import type { ManagerProjectCard, ManagerTeamCard } from '../../types/manager.types'
+import { getAuthUser } from '../../../../../services/auth'
 import '../../../../../styles/user/Manager/panels/ManagerProjectsPanel.css'
 
 type ManagerProjectsPanelProps = {
@@ -132,6 +133,9 @@ const ManagerProjectsPanel = ({
 	onAssignTeams,
 	onRevokeTeams,
 }: ManagerProjectsPanelProps) => {
+	const authUser = getAuthUser()
+	const isTeamScopedManager = authUser?.role === 'Manager' && authUser?.managerScope === 'team'
+
 	const [query, setQuery] = useState('')
 	const [statusFilter, setStatusFilter] = useState<'all' | ApiProjectStatus>('all')
 	const [teamFilter, setTeamFilter] = useState<string>(createInitialTeamFilter)
@@ -324,11 +328,13 @@ const ManagerProjectsPanel = ({
 		<section className="ceo-panel active">
 			<div className="ceo-section-head">
 				<h2>Projects</h2>
-				<div className="ceo-actions-row">
-					<button className="ceo-btn-primary" type="button" onClick={openCreateModal}>
-						Create Project
-					</button>
-				</div>
+				{!isTeamScopedManager ? (
+					<div className="ceo-actions-row">
+						<button className="ceo-btn-primary" type="button" onClick={openCreateModal} disabled={isMutating}>
+							Create Project
+						</button>
+					</div>
+				) : null}
 			</div>
 			{!isLoading && !error ? (
 				<div className="ceo-task-filters manager-project-filters">
@@ -401,10 +407,16 @@ const ManagerProjectsPanel = ({
 			{!isLoading && !error && actionError ? <div className="manager-state manager-state-error">{actionError}</div> : null}
 			{!isLoading && !error && projects.length === 0 ? (
 				<div className="manager-state manager-state-empty">
-					<p>No projects yet. Create the first project for your team.</p>
-					<button className="ceo-btn-primary" type="button" onClick={openCreateModal}>
-						Create Project
-					</button>
+					{isTeamScopedManager ? (
+						<p>No projects are currently assigned to your team scope.</p>
+					) : (
+						<>
+							<p>No projects yet. Create the first project for your team.</p>
+							<button className="ceo-btn-primary" type="button" onClick={openCreateModal} disabled={isMutating}>
+								Create Project
+							</button>
+						</>
+					)}
 				</div>
 			) : null}
 			{!isLoading && !error && projects.length > 0 && filteredProjects.length === 0 ? (

@@ -40,7 +40,7 @@ router.post("/invite", authenticateJWT, roleResolution, authorizeRoles("CEO", "M
       return res.status(400).json({ message: "role must be Manager or Employee" });
     }
 
-    const inviteRole = role ?? "Employee";
+    let inviteRole = role ?? "Employee";
     const requestedScopeType = scopeType === "company" ? "company" : "team";
 
     let resolvedScopeType = requestedScopeType;
@@ -48,6 +48,10 @@ router.post("/invite", authenticateJWT, roleResolution, authorizeRoles("CEO", "M
 
     if (!isCeo(req)) {
       resolvedScopeType = "team";
+
+      if (req.authz?.managerScope === "team") {
+        inviteRole = "Employee";
+      }
 
       const managerTeamIds = getManagerScopeTeamIds(req);
       if (req.authz?.managerScope === "company") {

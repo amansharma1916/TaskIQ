@@ -7,6 +7,7 @@ import Home from '../components/private/Home'
 import ProjectDetails from '../components/user/CEOs/ProjectDetails'
 import Dashboard_CEO from '../components/user/CEOs/Dashboard_CEO'
 import Dashboard_Manager from '../components/user/Manager/Dashboard_Manager'
+import Dashboard_Employee from '../components/user/Employee/Dashboard_Employee'
 import ProtectRoute from '../protection/ProtectRoute'
 
 const router = createBrowserRouter([
@@ -47,6 +48,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectRoute requiredRoles={['Manager']}>
         <Dashboard_Manager />
+      </ProtectRoute>
+    ),
+  },
+  {
+    path: '/employee/dashboard',
+    element: (
+      <ProtectRoute requiredRoles={['Employee']}>
+        <Dashboard_Employee />
       </ProtectRoute>
     ),
   },

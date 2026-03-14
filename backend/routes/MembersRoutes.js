@@ -49,8 +49,19 @@ router.post("/add", authorizeRoles("CEO", "Manager"), async (req, res) => {
       return;
     }
 
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope === "team") {
+      return res.status(403).json({ message: "Team-scoped managers cannot create members directly. Send an invite instead." });
+    }
+
     if (!memberName) {
       return res.status(400).json({ message: "memberName is required" });
+    }
+
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope !== "company" && teamId) {
+      const managerTeamIdSet = new Set(getManagerScopeTeamIds(req).map((id) => String(id)));
+      if (!managerTeamIdSet.has(String(teamId))) {
+        return res.status(403).json({ message: "Cannot add members outside your team scope" });
+      }
     }
 
     let resolvedCompanyId = companyId;
@@ -102,7 +113,7 @@ router.post("/add", authorizeRoles("CEO", "Manager"), async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", authorizeRoles("CEO", "Manager"), async (req, res) => {
   try {
     const companyId = requireCompanyScope(req, res);
     if (!companyId) {
@@ -115,6 +126,25 @@ router.get("/", async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+router.get("/me", async (req, res) => {
+  try {
+    const companyId = requireCompanyScope(req, res);
+    if (!companyId) {
+      return;
+    }
+
+    const member = await Members.findOne({ companyId, userId: req.user?.userId }).populate("memberTeam");
+
+    if (!member) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    return res.json(member);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 });
 

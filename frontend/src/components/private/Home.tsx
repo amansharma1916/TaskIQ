@@ -1,7 +1,14 @@
 import { getAuthUser } from '../../services/auth'
+import { Navigate } from 'react-router-dom'
+import { getRoleDefaultRoute } from '../../config/roles'
 
 const Home = () => {
   const user = getAuthUser() ?? {}
+  const roleRoute = getRoleDefaultRoute(user.role)
+
+  if (roleRoute !== '/home') {
+    return <Navigate to={roleRoute} replace />
+  }
 
   return (
     <div style={{ padding: '2rem' }}>

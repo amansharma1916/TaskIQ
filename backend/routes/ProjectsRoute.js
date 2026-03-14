@@ -56,6 +56,10 @@ router.post("/create", authorizeRoles("CEO", "Manager"), authorizeCapability("pr
       return;
     }
 
+    if (req.authz?.effectiveRole === "Manager" && req.authz?.scopedEnforcement && req.authz?.managerScope === "team") {
+      return res.status(403).json({ message: "Team-scoped managers cannot create new projects" });
+    }
+
     const {
       projectName,
       projectDescription,

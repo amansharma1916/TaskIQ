@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import type { ApiTaskPriority, ApiTaskStatus, TaskListSortBy } from '../../../CEOs/types/api.types'
 import type { ManagerMemberOption, ManagerProjectCard, ManagerTaskPageState, ManagerTaskQuery, ManagerTaskRow, ManagerTeamCard } from '../../types/manager.types'
 import { getAssignableMembersForTask } from '../../utils/taskAssignments'
+import { getAuthUser } from '../../../../../services/auth'
 import '../../../../../styles/user/Manager/panels/ManagerTasksPanel.css'
 
 type ManagerTasksPanelProps = {
@@ -108,8 +109,13 @@ const ManagerTasksPanel = ({
 	onCreateTask,
 	onEditTask,
 }: ManagerTasksPanelProps) => {
+	const authUser = getAuthUser()
+	const isTeamScopedManager = authUser?.role === 'Manager' && authUser?.managerScope === 'team'
+	const managerScopedTeamIdSet = new Set(authUser?.managerTeamIds ?? [])
+
 	const [activeModal, setActiveModal] = useState<{ mode: TaskModalMode; taskId?: string } | null>(null)
 	const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+	const [taskFormError, setTaskFormError] = useState('')
 	const [taskForm, setTaskForm] = useState<TaskFormState>({
 		title: '',
 		description: '',
@@ -170,42 +176,61 @@ const ManagerTasksPanel = ({
 	const sortedProjects = useMemo(() => [...projects].sort((left, right) => left.name.localeCompare(right.name)), [projects])
 	const sortedTeams = useMemo(() => [...teams].sort((left, right) => left.name.localeCompare(right.name)), [teams])
 	const sortedMembers = useMemo(() => [...members].sort((left, right) => left.name.localeCompare(right.name)), [members])
+	const toolbarTeams = isTeamScopedManager ? sortedTeams.filter((team) => managerScopedTeamIdSet.has(team.id)) : sortedTeams
 
-	const selectedProject = useMemo(
-		() => sortedProjects.find((project) => project.id === taskForm.projectId) ?? null,
-		[sortedProjects, taskForm.projectId]
-	)
-	const assignableTeamsForForm = useMemo(() => {
-		if (!selectedProject) {
-			return sortedTeams
+	const getAssignableTeamsForProject = (projectId: string): ManagerTeamCard[] => {
+		const selected = sortedProjects.find((project) => project.id === projectId)
+		if (!selected) {
+			return isTeamScopedManager ? sortedTeams.filter((team) => managerScopedTeamIdSet.has(team.id)) : sortedTeams
 		}
 
-		return sortedTeams.filter((team) => selectedProject.assignedTeamIds.includes(team.id))
-	}, [selectedProject, sortedTeams])
+		const projectTeams = sortedTeams.filter((team) => selected.assignedTeamIds.includes(team.id))
+		if (!isTeamScopedManager) {
+			return projectTeams
+		}
+
+		return projectTeams.filter((team) => managerScopedTeamIdSet.has(team.id))
+	}
+
+	const assignableTeamsForForm = getAssignableTeamsForProject(taskForm.projectId)
+
+	const handleProjectChange = (projectId: string) => {
+		const candidateTeams = getAssignableTeamsForProject(projectId)
+		const nextTeamId = isTeamScopedManager ? candidateTeams[0]?.id ?? '' : ''
+		setTaskFormError('')
+		updateTaskForm({ projectId, teamId: nextTeamId })
+	}
 
 	const openCreateTaskModal = () => {
+		const defaultProjectId = sortedProjects[0]?.id ?? ''
+		const defaultAssignableTeams = getAssignableTeamsForProject(defaultProjectId)
 		setActiveModal({ mode: 'create' })
+		setTaskFormError('')
 		setTaskForm({
 			title: '',
 			description: '',
 			status: 'todo',
 			priority: 'medium',
-			projectId: sortedProjects[0]?.id ?? '',
-			teamId: '',
+			projectId: defaultProjectId,
+			teamId: isTeamScopedManager ? defaultAssignableTeams[0]?.id ?? '' : '',
 			dueDate: '',
 			assigneeMemberId: '',
 		})
 	}
 
 	const openEditTaskModal = (task: ManagerTaskRow) => {
+		const resolvedProjectId = task.projectId ?? sortedProjects[0]?.id ?? ''
+		const candidateTeams = getAssignableTeamsForProject(resolvedProjectId)
+		const hasCurrentTeam = Boolean(task.teamId && candidateTeams.some((team) => team.id === task.teamId))
 		setActiveModal({ mode: 'edit', taskId: task.id })
+		setTaskFormError('')
 		setTaskForm({
 			title: task.title,
 			description: task.description,
 			status: task.status,
 			priority: task.priority,
-			projectId: task.projectId ?? sortedProjects[0]?.id ?? '',
-			teamId: task.teamId ?? '',
+			projectId: resolvedProjectId,
+			teamId: isTeamScopedManager ? (hasCurrentTeam ? task.teamId ?? '' : candidateTeams[0]?.id ?? '') : task.teamId ?? '',
 			dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
 			assigneeMemberId: task.assigneeMemberId ?? '',
 		})
@@ -213,11 +238,16 @@ const ManagerTasksPanel = ({
 
 	const closeTaskModal = () => {
 		setActiveModal(null)
+		setTaskFormError('')
 	}
 
 	const getAssignableMembers = (task: ManagerTaskRow): ManagerMemberOption[] => getAssignableMembersForTask(task, members)
 
 	const updateTaskForm = (updates: Partial<TaskFormState>) => {
+		if (taskFormError) {
+			setTaskFormError('')
+		}
+
 		setTaskForm((prev) => ({
 			...prev,
 			...updates,
@@ -227,6 +257,22 @@ const ManagerTasksPanel = ({
 	const submitTaskForm = () => {
 		const trimmedTitle = taskForm.title.trim()
 		if (!trimmedTitle || !taskForm.projectId) {
+			setTaskFormError('Title and project are required.')
+			return
+		}
+
+		if (taskForm.teamId && !assignableTeamsForForm.some((team) => team.id === taskForm.teamId)) {
+			setTaskFormError('Selected team is not assigned to the selected project.')
+			return
+		}
+
+		if (isTeamScopedManager && !taskForm.teamId) {
+			setTaskFormError('Team is required for team-scoped managers.')
+			return
+		}
+
+		if (isTeamScopedManager && taskForm.teamId && !managerScopedTeamIdSet.has(taskForm.teamId)) {
+			setTaskFormError('Selected team is outside your scope.')
 			return
 		}
 
@@ -249,6 +295,13 @@ const ManagerTasksPanel = ({
 
 		closeTaskModal()
 	}
+
+	const disableSubmit =
+		!taskForm.title.trim() ||
+		!taskForm.projectId ||
+		(isTeamScopedManager && !taskForm.teamId) ||
+		(isTeamScopedManager && taskForm.projectId !== '' && assignableTeamsForForm.length === 0) ||
+		isMutating
 
 	if (!isActive) {
 		return null
@@ -297,6 +350,52 @@ const ManagerTasksPanel = ({
 						{priorityFilterOptions.map((option) => (
 							<option key={option.value} value={option.value}>
 								{option.label}
+							</option>
+						))}
+					</select>
+				</label>
+				<label>
+					Project
+					<select
+						className="manager-task-select"
+						value={taskQuery.projectId}
+						onChange={(event) => updateQuery({ projectId: event.target.value })}
+					>
+						<option value="all">All projects</option>
+						{sortedProjects.map((project) => (
+							<option key={project.id} value={project.id}>
+								{project.name}
+							</option>
+						))}
+					</select>
+				</label>
+				<label>
+					Team
+					<select
+						className="manager-task-select"
+						value={taskQuery.teamId}
+						onChange={(event) => updateQuery({ teamId: event.target.value })}
+					>
+						<option value="all">All teams</option>
+						{toolbarTeams.map((team) => (
+							<option key={team.id} value={team.id}>
+								{team.name}
+							</option>
+						))}
+					</select>
+				</label>
+				<label>
+					Assignee
+					<select
+						className="manager-task-select"
+						value={taskQuery.assigneeMemberId}
+						onChange={(event) => updateQuery({ assigneeMemberId: event.target.value as ManagerTaskQuery['assigneeMemberId'] })}
+					>
+						<option value="all">All assignees</option>
+						<option value="unassigned">Unassigned</option>
+						{sortedMembers.map((member) => (
+							<option key={member.id} value={member.id}>
+								{member.name}
 							</option>
 						))}
 					</select>
@@ -456,7 +555,7 @@ const ManagerTasksPanel = ({
 									Project
 									<select
 										value={taskForm.projectId}
-										onChange={(event) => updateTaskForm({ projectId: event.target.value, teamId: '' })}
+										onChange={(event) => handleProjectChange(event.target.value)}
 									>
 										<option value="">Select project</option>
 										{sortedProjects.map((project) => (
@@ -490,7 +589,7 @@ const ManagerTasksPanel = ({
 								<label>
 									Team
 									<select value={taskForm.teamId} onChange={(event) => updateTaskForm({ teamId: event.target.value })}>
-										<option value="">No team</option>
+										{!isTeamScopedManager ? <option value="">No team</option> : null}
 										{assignableTeamsForForm.map((team) => (
 											<option key={team.id} value={team.id}>
 												{team.name}
@@ -498,6 +597,9 @@ const ManagerTasksPanel = ({
 										))}
 									</select>
 								</label>
+								{isTeamScopedManager && taskForm.projectId && assignableTeamsForForm.length === 0 ? (
+									<p className="manager-state manager-state-error">No teams in your scope are assigned to this project.</p>
+								) : null}
 								<label>
 									Due Date
 									<input type="date" value={taskForm.dueDate} onChange={(event) => updateTaskForm({ dueDate: event.target.value })} />
@@ -517,6 +619,7 @@ const ManagerTasksPanel = ({
 									</select>
 								</label>
 							</div>
+							{taskFormError ? <p className="manager-state manager-state-error">{taskFormError}</p> : null}
 							<label>
 								Description
 								<textarea
@@ -531,7 +634,7 @@ const ManagerTasksPanel = ({
 							<button className="ceo-btn-outline" type="button" onClick={closeTaskModal}>
 								Cancel
 							</button>
-							<button className="ceo-btn-primary" type="button" onClick={submitTaskForm} disabled={!taskForm.title.trim() || !taskForm.projectId || isMutating}>
+							<button className="ceo-btn-primary" type="button" onClick={submitTaskForm} disabled={disableSubmit}>
 								{activeModal.mode === 'edit' ? 'Save Changes' : 'Create Task'}
 							</button>
 						</div>

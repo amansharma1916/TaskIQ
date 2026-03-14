@@ -20,6 +20,10 @@ export const buildAuthUser = (user, company = null) => ({
   workEmail: user.workEmail,
   teamSize: company?.teamSize ?? null,
   role: user.role,
+  managerScope: user.managerScope ?? "company",
+  managerTeamIds: Array.isArray(user.managerTeamIds)
+    ? user.managerTeamIds.map((teamId) => String(teamId))
+    : [],
 });
 
 export const hashRefreshToken = (token) => crypto.createHash("sha256").update(token).digest("hex");

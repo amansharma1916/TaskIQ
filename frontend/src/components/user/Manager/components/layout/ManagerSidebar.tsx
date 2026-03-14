@@ -13,6 +13,7 @@ type ManagerSidebarProps = {
 const panelItems: Array<{ id: ManagerPanelId; label: string }> = [
 	{ id: 'projects', label: 'Projects' },
 	{ id: 'tasks', label: 'Tasks' },
+	{ id: 'members', label: 'Members' },
 	{ id: 'my-assignments', label: 'My Assignments' },
 	{ id: 'teams', label: 'Teams' },
 	{ id: 'activity', label: 'Activity' },
@@ -61,7 +62,7 @@ const ManagerSidebar = ({
 					<div className="ceo-avatar">{displayUserInitials}</div>
 					<div>
 						<div className="ceo-user-name">{displayUserName}</div>
-						<div className="ceo-user-role">Manager | Supervisor</div>
+						<div className="ceo-user-role">{displayDesignation}</div>
 					</div>
 				</div>
 				<button className="ceo-btn-outline" onClick={onSignOut} type="button" style={{ width: '100%' }}>
