@@ -84,7 +84,7 @@ const Dashboard_Manager = () => {
   const user = getAuthUser()
   const displayCompanyName = user?.companyName?.trim() || 'TaskIQ'
   const displayUserName = user?.name?.trim() || 'Manager'
-  const displayDesignation = user?.role?.trim() || 'Manager'
+  const displayDesignation = user?.role === 'Manager' && user?.managerScope === 'team' ? 'Team Manager' : user?.role?.trim() || 'Manager'
   const displayUserInitials = getInitials(displayUserName)
 
   const onSignOut = async () => {

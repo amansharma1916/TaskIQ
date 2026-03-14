@@ -61,7 +61,7 @@ const ManagerSidebar = ({
 					<div className="ceo-avatar">{displayUserInitials}</div>
 					<div>
 						<div className="ceo-user-name">{displayUserName}</div>
-						<div className="ceo-user-role">Manager | Supervisor</div>
+						<div className="ceo-user-role">{displayDesignation}</div>
 					</div>
 				</div>
 				<button className="ceo-btn-outline" onClick={onSignOut} type="button" style={{ width: '100%' }}>
