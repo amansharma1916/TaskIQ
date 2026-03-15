@@ -13,6 +13,7 @@ const ensureSendgridConfigured = () => {
   }
   sgMail.setApiKey(apiKey);
   sendgridInitialized = true;
+  
 };
 
 const resolveFromEmail = () => {
