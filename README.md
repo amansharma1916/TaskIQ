@@ -46,6 +46,9 @@ JWT_REFRESH_TOKEN_TTL_DAYS=7
 FRONTEND_URL=http://localhost:5173
 INVITE_LINK_BASE_URL=http://localhost:5173
 
+SENDGRID_API_KEY=<your-sendgrid-api-key>
+EMAIL_FROM=TaskIQ <verified-sender@your-domain.com>
+
 # Optional: set to false/0/off/no to disable manager team scope filtering
 RBAC_SCOPED_ENFORCEMENT=true
 ```
@@ -142,4 +145,4 @@ Manager scope behavior:
 ## Notes
 
 - Root `package.json` is minimal; run backend/frontend commands in their own folders.
-- If invite emails are enabled, ensure SMTP settings are configured where your mail utility expects them.
+- If invite emails are enabled, ensure `SENDGRID_API_KEY` is valid and `EMAIL_FROM` is a verified sender in SendGrid.
