@@ -4,6 +4,7 @@ export type PanelId =
 	| 'teams'
 	| 'projects'
 	| 'tasks'
+	| 'updates'
 	| 'members'
 	| 'settings'
 

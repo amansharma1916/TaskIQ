@@ -1,0 +1,95 @@
+.employee-updates-card {
+	display: grid;
+	gap: 10px;
+}
+
+.employee-updates-head {
+	align-items: center;
+}
+
+.employee-updates-badge {
+	font-size: 0.76rem;
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: rgba(59, 130, 246, 0.12);
+	border: 1px solid rgba(96, 165, 250, 0.35);
+	color: #bfdbfe;
+}
+
+.employee-updates-list {
+	display: grid;
+	gap: 8px;
+}
+
+.employee-update-item {
+	border: 1px solid rgba(148, 163, 184, 0.3);
+	border-radius: 10px;
+	padding: 10px;
+	background: rgba(15, 23, 43, 0.68);
+	display: grid;
+	gap: 6px;
+}
+
+.employee-update-item.unread {
+	border-color: rgba(59, 130, 246, 0.46);
+	box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.14);
+}
+
+.employee-update-top {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	align-items: center;
+}
+
+.employee-update-top strong {
+	font-size: 0.92rem;
+	color: #f5f7ff;
+}
+
+.employee-update-item p {
+	margin: 0;
+	font-size: 0.84rem;
+	line-height: 1.45;
+	color: #dbe4fb;
+}
+
+.employee-update-meta {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	font-size: 0.72rem;
+	color: #9bb0d9;
+}
+
+.employee-update-priority {
+	font-size: 0.67rem;
+	padding: 3px 7px;
+	border-radius: 999px;
+	text-transform: capitalize;
+	border: 1px solid transparent;
+}
+
+.employee-update-priority.low {
+	background: rgba(34, 197, 94, 0.12);
+	border-color: rgba(134, 239, 172, 0.34);
+	color: #86efac;
+}
+
+.employee-update-priority.medium {
+	background: rgba(250, 204, 21, 0.14);
+	border-color: rgba(250, 204, 21, 0.38);
+	color: #fde047;
+}
+
+.employee-update-priority.high {
+	background: rgba(244, 63, 94, 0.16);
+	border-color: rgba(253, 164, 175, 0.4);
+	color: #fda4af;
+}
+
+.employee-updates-error {
+	margin: 0;
+	font-size: 0.78rem;
+	color: #fca5a5;
+}

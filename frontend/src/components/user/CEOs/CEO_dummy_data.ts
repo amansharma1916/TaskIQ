@@ -20,6 +20,7 @@ export const pageTitles: Record<PanelId, string> = {
 	teams: 'Teams',
 	projects: 'Projects',
 	tasks: 'All Tasks',
+	updates: 'Updates Center',
 	members: 'Members',
 	settings: 'Settings',
 }
@@ -42,6 +43,7 @@ export const ceoDashboardData: DashboardData = {
 			{ id: 'teams', label: 'Teams', short: 'TM' },
 			{ id: 'projects', label: 'Projects', short: 'PR', badge: '4' },
 			{ id: 'tasks', label: 'Tasks', short: 'TS' },
+			{ id: 'updates', label: 'Updates', short: 'UP' },
 			{ id: 'members', label: 'Members', short: 'MB' },
 		],
 		system: [{ id: 'settings', label: 'Settings', short: 'ST' }],

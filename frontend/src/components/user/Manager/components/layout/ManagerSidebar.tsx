@@ -16,6 +16,7 @@ const panelItems: Array<{ id: ManagerPanelId; label: string }> = [
 	{ id: 'members', label: 'Members' },
 	{ id: 'my-assignments', label: 'My Assignments' },
 	{ id: 'teams', label: 'Teams' },
+	{ id: 'updates', label: 'Updates' },
 	{ id: 'activity', label: 'Activity' },
 ]
 

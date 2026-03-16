@@ -3,7 +3,8 @@ import type { ManagerPanelId } from '../../types/manager.types'
 type ManagerTopbarProps = {
 	activePanel: ManagerPanelId
 	onRefresh: () => void
-	onOpenActivity: () => void
+	onOpenUpdates: () => void
+	unreadUpdatesCount: number
 }
 
 const panelTitles: Record<ManagerPanelId, string> = {
@@ -12,10 +13,11 @@ const panelTitles: Record<ManagerPanelId, string> = {
 	members: 'Member Directory',
 	'my-assignments': 'My Assignments',
 	teams: 'Team Coordination',
+	updates: 'Updates Center',
 	activity: 'Recent Activity',
 }
 
-const ManagerTopbar = ({ activePanel, onRefresh, onOpenActivity }: ManagerTopbarProps) => {
+const ManagerTopbar = ({ activePanel, onRefresh, onOpenUpdates, unreadUpdatesCount }: ManagerTopbarProps) => {
 	return (
 		<header className="ceo-topbar">
 			<h1>{panelTitles[activePanel]}</h1>
@@ -23,8 +25,8 @@ const ManagerTopbar = ({ activePanel, onRefresh, onOpenActivity }: ManagerTopbar
 				<button className="ceo-btn-outline" onClick={onRefresh} type="button">
 					Refresh
 				</button>
-				<button className="ceo-notif" type="button" aria-label="Open recent activity" onClick={onOpenActivity}>
-					🔔
+				<button className="ceo-notif" type="button" aria-label="Open updates" onClick={onOpenUpdates}>
+					🔔{unreadUpdatesCount > 0 ? ` ${unreadUpdatesCount}` : ''}
 				</button>
 			</div>
 		</header>
