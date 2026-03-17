@@ -10,6 +10,7 @@ import type { EmployeePanelId } from './types/employee.types'
 import { useEmployeeDashboardData } from './hooks/useEmployeeDashboardData'
 import TasksPanel_Employee from './components/panels/TasksPanel_Employee'
 import type { ManagerUpdateItem } from '../Manager/types/manager.types'
+import SettingsPanel from '../CEOs/Components/panels/SettingsPanel'
 
 const getInitials = (name?: string): string => {
   if (!name) {
@@ -49,7 +50,7 @@ const Dashboard_Employee = () => {
   const displayUserName = user?.name?.trim() || 'Employee'
   const displayUserInitials = getInitials(displayUserName)
 
-  const [showSignOutMenu, setShowSignOutMenu] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [updates, setUpdates] = useState<ManagerUpdateItem[]>([])
   const [updatesUnreadCount, setUpdatesUnreadCount] = useState(0)
   const [updatesLoading, setUpdatesLoading] = useState(false)
@@ -83,15 +84,15 @@ const Dashboard_Employee = () => {
   }
 
   useEffect(() => {
-    if (!showSignOutMenu) {
+    if (!profileMenuOpen) {
       return
     }
 
-    const onClickAway = () => setShowSignOutMenu(false)
+    const onClickAway = () => setProfileMenuOpen(false)
     window.addEventListener('click', onClickAway)
 
     return () => window.removeEventListener('click', onClickAway)
-  }, [showSignOutMenu])
+  }, [profileMenuOpen])
 
   useEffect(() => {
     void loadEmployeeUpdates()
@@ -100,6 +101,11 @@ const Dashboard_Employee = () => {
   const onSignOut = async () => {
     await logoutSession(apiBase)
     navigate('/login')
+  }
+
+  const switchPanel = (panel: EmployeePanelId) => {
+    setActivePanel(panel)
+    setProfileMenuOpen(false)
   }
 
   return (
@@ -119,7 +125,7 @@ const Dashboard_Employee = () => {
             <button
               className={`ceo-nav-item ${activePanel === 'overview' ? 'active' : ''}`}
               type="button"
-              onClick={() => setActivePanel('overview')}
+              onClick={() => switchPanel('overview')}
             >
               <span>01</span>
               Overview
@@ -127,7 +133,7 @@ const Dashboard_Employee = () => {
             <button
               className={`ceo-nav-item ${activePanel === 'tasks' ? 'active' : ''}`}
               type="button"
-              onClick={() => setActivePanel('tasks')}
+              onClick={() => switchPanel('tasks')}
             >
               <span>02</span>
               My Tasks
@@ -136,8 +142,11 @@ const Dashboard_Employee = () => {
         </div>
 
         <div className="ceo-user-area" onClick={(event) => event.stopPropagation()}>
-          {showSignOutMenu ? (
+          {profileMenuOpen ? (
             <div className="ceo-profile-menu ceo-profile-menu-bottom">
+              <button type="button" onClick={() => switchPanel('settings')}>
+                Settings
+              </button>
               <button type="button" className="danger" onClick={() => void onSignOut()}>
                 Sign out
               </button>
@@ -146,7 +155,7 @@ const Dashboard_Employee = () => {
           <button
             className="ceo-user-card employee-user-card-button"
             type="button"
-            onClick={() => setShowSignOutMenu((prev) => !prev)}
+            onClick={() => setProfileMenuOpen((prev) => !prev)}
           >
             <span className="ceo-avatar employee-avatar">{displayUserInitials}</span>
             <span className="employee-user-meta">
@@ -206,7 +215,7 @@ const Dashboard_Employee = () => {
             <article className="ceo-card employee-overview-card">
               <div className="ceo-card-head">
                 <h3>Focus for Today</h3>
-                <button className="ceo-btn-primary" type="button" onClick={() => setActivePanel('tasks')}>
+                <button className="ceo-btn-primary" type="button" onClick={() => switchPanel('tasks')}>
                   Open Tasks
                 </button>
               </div>
@@ -268,6 +277,7 @@ const Dashboard_Employee = () => {
             canUpdateTaskStatus={canUpdateTaskStatus}
             onUpdateTaskStatus={onUpdateTaskStatus}
           />
+          <SettingsPanel isActive={activePanel === 'settings'} sections={['Profile', 'Security']} />
         </section>
       </main>
     </div>

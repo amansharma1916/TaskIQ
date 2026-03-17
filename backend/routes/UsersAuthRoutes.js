@@ -155,6 +155,14 @@ router.post("/register-with-invite", async (req, res) => {
 			return res.status(400).json({ message: "Invalid invite" });
 		}
 
+		const inviteScopeType =
+			invite.scopeType === "company" || invite.scopeType === "team"
+				? invite.scopeType
+				: Array.isArray(invite.scopeTeamIds) && invite.scopeTeamIds.length > 0
+					? "team"
+					: "company";
+		const inviteScopeTeamIds = inviteScopeType === "team" ? invite.scopeTeamIds ?? [] : [];
+
 		const existingUser = await Users.findOne({ workEmail: invite.email });
 		if (existingUser) {
 			return res.status(409).json({ message: "This invite email is already registered" });
@@ -171,17 +179,17 @@ router.post("/register-with-invite", async (req, res) => {
 			password,
 			role: invite.role,
 			companyId: invite.companyId,
-			managerScope: invite.role === "Manager" ? invite.scopeType ?? "team" : "team",
-			managerTeamIds: invite.role === "Manager" ? invite.scopeTeamIds ?? [] : [],
+			managerScope: invite.role === "Manager" ? inviteScopeType : "team",
+			managerTeamIds: invite.role === "Manager" ? inviteScopeTeamIds : [],
 		});
 		createdUserId = user._id;
 
 		const member = await Members.create({
 			memberName: name,
 			memberRole: invite.role,
-			scopeType: invite.scopeType ?? "team",
-			scopeTeamIds: invite.scopeTeamIds ?? [],
-			memberTeam: invite.scopeTeamIds?.[0] ?? null,
+			scopeType: inviteScopeType,
+			scopeTeamIds: inviteScopeTeamIds,
+			memberTeam: inviteScopeTeamIds[0] ?? null,
 			userId: user._id,
 			companyId: invite.companyId,
 		});
@@ -268,7 +276,7 @@ router.post("/logout", async (req, res) => {
 	}
 });
 
-router.get("/me", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
+router.get("/me", authenticateJWT, authorizeRoles("CEO", "Manager", "Employee"), async (req, res) => {
 	try {
 		const user = await Users.findById(req.user.userId);
 
@@ -282,7 +290,7 @@ router.get("/me", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
 	}
 });
 
-router.put("/me", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
+router.put("/me", authenticateJWT, authorizeRoles("CEO", "Manager", "Employee"), async (req, res) => {
 	try {
 		const { name, workEmail } = req.body;
 
@@ -320,7 +328,7 @@ router.put("/me", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
 	}
 });
 
-router.patch("/me/password", authenticateJWT, authorizeRoles("CEO"), async (req, res) => {
+router.patch("/me/password", authenticateJWT, authorizeRoles("CEO", "Manager", "Employee"), async (req, res) => {
 	try {
 		const { currentPassword, newPassword } = req.body;
 

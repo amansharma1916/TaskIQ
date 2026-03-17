@@ -75,7 +75,7 @@ export const roleResolution = async (req, _res, next) => {
       : null;
 
     const effectiveRole = user?.role ?? req.user.role;
-    const managerScope = user?.managerScope ?? (member?.memberTeam ? "team" : "company");
+    const managerScope = user?.managerScope ?? "company";
 
     let managerTeamIds = toObjectIdArray(user?.managerTeamIds ?? []);
 

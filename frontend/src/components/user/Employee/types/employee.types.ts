@@ -1,6 +1,6 @@
 import type { ApiTaskPriority, ApiTaskStatus, TaskListSortBy, TaskListSortOrder } from '../../CEOs/types/api.types'
 
-export type EmployeePanelId = 'overview' | 'tasks'
+export type EmployeePanelId = 'overview' | 'tasks' | 'settings'
 
 export type EmployeeTaskRow = {
   id: string

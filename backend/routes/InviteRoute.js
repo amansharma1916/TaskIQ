@@ -41,10 +41,16 @@ router.post("/invite", authenticateJWT, roleResolution, authorizeRoles("CEO", "M
     }
 
     let inviteRole = role ?? "Employee";
-    const requestedScopeType = scopeType === "company" ? "company" : "team";
+    const parsedScopeTeamIds = parseTeamIds(scopeTeamIds);
+    const requestedScopeType =
+      scopeType === "company" || scopeType === "team"
+        ? scopeType
+        : parsedScopeTeamIds.length > 0
+          ? "team"
+          : "company";
 
     let resolvedScopeType = requestedScopeType;
-    let resolvedScopeTeamIds = parseTeamIds(scopeTeamIds);
+    let resolvedScopeTeamIds = parsedScopeTeamIds;
 
     if (!isCeo(req)) {
       resolvedScopeType = "team";

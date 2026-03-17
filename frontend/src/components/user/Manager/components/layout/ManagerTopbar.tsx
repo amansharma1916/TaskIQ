@@ -15,6 +15,7 @@ const panelTitles: Record<ManagerPanelId, string> = {
 	teams: 'Team Coordination',
 	updates: 'Updates Center',
 	activity: 'Recent Activity',
+	settings: 'Settings',
 }
 
 const ManagerTopbar = ({ activePanel, onRefresh, onOpenUpdates, unreadUpdatesCount }: ManagerTopbarProps) => {

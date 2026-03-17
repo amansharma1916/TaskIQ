@@ -1,7 +1,7 @@
 import type { ApiTaskPriority, ApiTaskStatus, TaskListSortBy, TaskListSortOrder } from '../../CEOs/types/api.types'
 import type { ApiProjectStatus } from '../../CEOs/types/api.types'
 
-export type ManagerPanelId = 'projects' | 'tasks' | 'members' | 'teams' | 'updates' | 'activity' | 'my-assignments'
+export type ManagerPanelId = 'projects' | 'tasks' | 'members' | 'teams' | 'updates' | 'activity' | 'my-assignments' | 'settings'
 
 export type ManagerUpdatePriority = 'low' | 'medium' | 'high'
 export type ManagerUpdateAudienceMode = 'company' | 'teams' | 'projectTeams'

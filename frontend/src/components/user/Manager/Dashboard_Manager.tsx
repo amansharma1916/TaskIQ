@@ -13,6 +13,7 @@ import ManagerTeamsPanel from './components/panels/ManagerTeamsPanel'
 import ManagerActivityPanel from './components/panels/ManagerActivityPanel'
 import ManagerUpdatesPanel from './components/panels/ManagerUpdatesPanel'
 import ManagerMyAssignmentsPanel from './components/panels/ManagerMyAssignmentsPanel'
+import SettingsPanel from '../CEOs/Components/panels/SettingsPanel'
 import { useManagerDashboardData } from './hooks/useManagerDashboardData'
 import {
   assignTask,
@@ -44,6 +45,7 @@ const Dashboard_Manager = () => {
   const navigate = useNavigate()
   const apiBase = import.meta.env.VITE_BACKEND_URL ?? ''
   const [activePanel, setActivePanel] = useState<ManagerPanelId>('projects')
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [isProjectMutating, setIsProjectMutating] = useState(false)
   const [projectActionError, setProjectActionError] = useState('')
   const [isTaskMutating, setIsTaskMutating] = useState(false)
@@ -101,6 +103,16 @@ const Dashboard_Manager = () => {
   const onSignOut = async () => {
     await logoutSession(apiBase)
     navigate('/login')
+  }
+
+  const switchPanel = (panel: ManagerPanelId) => {
+    setActivePanel(panel)
+    setProfileMenuOpen(false)
+  }
+
+  const handleProfileSignOut = () => {
+    setProfileMenuOpen(false)
+    void onSignOut()
   }
 
   const handleCreateProject = async (payload: {
@@ -392,19 +404,22 @@ const Dashboard_Manager = () => {
     <div className="ceo-dashboard-root">
       <ManagerSidebar
         activePanel={activePanel}
+        profileMenuOpen={profileMenuOpen}
         displayCompanyName={displayCompanyName}
         displayDesignation={displayDesignation}
         displayUserName={displayUserName}
         displayUserInitials={displayUserInitials}
-        onSwitchPanel={setActivePanel}
-        onSignOut={() => void onSignOut()}
+        onToggleProfileMenu={() => setProfileMenuOpen((prev) => !prev)}
+        onOpenPreferences={() => switchPanel('settings')}
+        onSwitchPanel={switchPanel}
+        onSignOut={handleProfileSignOut}
       />
 
       <main className="ceo-main">
         <ManagerTopbar
           activePanel={activePanel}
           onRefresh={() => void reloadAll()}
-          onOpenUpdates={() => setActivePanel('updates')}
+          onOpenUpdates={() => switchPanel('updates')}
           unreadUpdatesCount={updatesUnreadCount}
         />
 
@@ -511,6 +526,7 @@ const Dashboard_Manager = () => {
             canLoadMore={canLoadMoreUpdates}
             onLoadMore={() => void loadMoreUpdates()}
           />
+          <SettingsPanel isActive={activePanel === 'settings'} sections={['Profile', 'Security']} />
         </section>
       </main>
     </div>
