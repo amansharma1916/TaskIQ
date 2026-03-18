@@ -16,6 +16,7 @@
   align-items: center;
 }
 
+
 .register-copy h1 {
   font-size: clamp(2rem, 4vw, 3.2rem);
   line-height: 1.1;
