@@ -33,6 +33,11 @@ const buildCapabilities = ({ effectiveRole, managerScope }) => {
     const base = [
       "projects:read",
       "projects:update",
+      "updates:create",
+      "updates:read",
+      "updates:update",
+      "updates:delete",
+      "updates:pin",
       "tasks:read",
       "tasks:create",
       "tasks:update",
@@ -53,7 +58,7 @@ const buildCapabilities = ({ effectiveRole, managerScope }) => {
     return base;
   }
 
-  return ["tasks:read", "tasks:status:update", "teams:read", "projects:read"];
+  return ["tasks:read", "tasks:status:update", "teams:read", "projects:read", "updates:read"];
 };
 
 export const roleResolution = async (req, _res, next) => {
@@ -70,7 +75,7 @@ export const roleResolution = async (req, _res, next) => {
       : null;
 
     const effectiveRole = user?.role ?? req.user.role;
-    const managerScope = user?.managerScope ?? (member?.memberTeam ? "team" : "company");
+    const managerScope = user?.managerScope ?? "company";
 
     let managerTeamIds = toObjectIdArray(user?.managerTeamIds ?? []);
 

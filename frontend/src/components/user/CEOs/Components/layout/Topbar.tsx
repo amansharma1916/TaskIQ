@@ -5,9 +5,11 @@ type TopbarProps = {
 	activePanel: PanelId
 	onInviteMember: () => void
 	onCreateProject: () => void
+	onOpenUpdates: () => void
+	unreadUpdatesCount: number
 }
 
-const Topbar = ({ activePanel, onInviteMember, onCreateProject }: TopbarProps) => {
+const Topbar = ({ activePanel, onInviteMember, onCreateProject, onOpenUpdates, unreadUpdatesCount }: TopbarProps) => {
 	return (
 		<header className="ceo-topbar">
 			<h1>{pageTitles[activePanel]}</h1>
@@ -18,8 +20,8 @@ const Topbar = ({ activePanel, onInviteMember, onCreateProject }: TopbarProps) =
 				<button className="ceo-btn-primary" onClick={onCreateProject} type="button">
 					New Project
 				</button>
-				<button className="ceo-notif" type="button" aria-label="Notifications">
-					🔔
+				<button className="ceo-notif" type="button" aria-label="Open updates" onClick={onOpenUpdates}>
+					🔔{unreadUpdatesCount > 0 ? ` ${unreadUpdatesCount}` : ''}
 				</button>
 			</div>
 		</header>

@@ -9,6 +9,7 @@ import MembersRoute from './routes/MembersRoutes.js';
 import ProjectsRoute from './routes/ProjectsRoute.js';
 import TasksRoute from './routes/TasksRoute.js';
 import ActivityRoute from './routes/ActivityRoute.js';
+import ProjectUpdatesRoute from './routes/ProjectUpdatesRoute.js';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/members', MembersRoute);
 app.use('/api/projects', ProjectsRoute);
 app.use('/api/tasks', TasksRoute);
 app.use('/api/activity', ActivityRoute);
+app.use('/api/updates', ProjectUpdatesRoute);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

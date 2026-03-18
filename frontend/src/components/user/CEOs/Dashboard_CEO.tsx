@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
+import '../../../styles/user/CEOs/CeoUpdatesPanel.css'
 import '../../../styles/user/CEOs/ProjectTeamModal.css'
 import '../../../styles/user/CEOs/TaskPanel.css'
 import { authorizedFetch } from '../../../services/apiClient'
@@ -13,6 +14,7 @@ import TeamsPanel from './Components/panels/TeamsPanel'
 import ProjectsPanel from './Components/panels/ProjectsPanel'
 import TasksPanel from './Components/panels/TasksPanel'
 import SettingsPanel from './Components/panels/SettingsPanel'
+import UpdatesPanel from './Components/panels/UpdatesPanel'
 import TaskModal, { type TaskFormValue } from './Components/panels/TaskModal'
 import DashboardStat from './Components/shared/DashboardStat'
 import type { ApiMember, ApiProject, ApiProjectStatus, ApiTask, ApiTaskStatus, ApiTeam } from './types/api.types'
@@ -21,7 +23,9 @@ import { avatarTones, modalTitles } from './utils/constants'
 import { getInitials } from './utils/formatters'
 import { assignTeams, createProject, deleteProject, getProjects, revokeTeams } from '../../../services/projects'
 import { createTask, deleteTask, getTasks, updateTask, updateTaskStatus } from '../../../services/tasks'
+import { createUpdate, deleteUpdate, editUpdate, getUpdatesFeed, getUpdatesUnreadCount, markUpdateRead, setUpdatePinned } from '../../../services/updates'
 import type { TaskFiltersValue } from './Components/panels/TaskFilters'
+import type { ManagerUpdateItem } from '../Manager/types/manager.types'
 
 const formatProjectDueLabel = (dateValue?: string | null): string => {
 	if (!dateValue) {
@@ -168,6 +172,14 @@ const Dashboard_CEO = () => {
 	const [tasksData, setTasksData] = useState<ApiTask[]>([])
 	const [taskActionError, setTaskActionError] = useState('')
 	const [isSavingTask, setIsSavingTask] = useState(false)
+	const [updatesData, setUpdatesData] = useState<ManagerUpdateItem[]>([])
+	const [updatesUnreadCount, setUpdatesUnreadCount] = useState(0)
+	const [updatesLimit, setUpdatesLimit] = useState(30)
+	const [isUpdatesLoading, setIsUpdatesLoading] = useState(false)
+	const [isUpdateMutating, setIsUpdateMutating] = useState(false)
+	const [isLoadingMoreUpdates, setIsLoadingMoreUpdates] = useState(false)
+	const [updatesError, setUpdatesError] = useState('')
+	const [updateActionError, setUpdateActionError] = useState('')
 	const [taskFilters, setTaskFilters] = useState<TaskFiltersValue>({
 		status: 'all',
 		priority: 'all',
@@ -275,9 +287,138 @@ const Dashboard_CEO = () => {
 		}
 	}, [companyId, projectsData])
 
+	const reloadUpdates = useCallback(async () => {
+		setIsUpdatesLoading(true)
+		setUpdatesError('')
+		try {
+			const [updatesPage, unread] = await Promise.all([
+				getUpdatesFeed({ page: 1, limit: updatesLimit }),
+				getUpdatesUnreadCount(),
+			])
+			setUpdatesData(updatesPage.items)
+			setUpdatesUnreadCount(unread)
+		} catch (error) {
+			setUpdatesData([])
+			setUpdatesError(error instanceof Error ? error.message : 'Failed to load updates')
+		} finally {
+			setIsUpdatesLoading(false)
+		}
+	}, [updatesLimit])
+
+	const handleCreateUpdate = async (payload: {
+		title: string
+		body: string
+		priority: 'low' | 'medium' | 'high'
+		isPinned?: boolean
+		projectId?: string | null
+		audience: {
+			mode: 'company' | 'teams' | 'projectTeams'
+			teamIds?: string[]
+			roles?: Array<'CEO' | 'Manager' | 'Employee'>
+		}
+	}) => {
+		setUpdateActionError('')
+		setIsUpdateMutating(true)
+		try {
+			await createUpdate(payload)
+			await reloadUpdates()
+			setActionAlert({ type: 'success', message: 'Update posted successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to post update'
+			setUpdateActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsUpdateMutating(false)
+		}
+	}
+
+	const handleEditUpdate = async (
+		updateId: string,
+		payload: Partial<{
+			title: string
+			body: string
+			priority: 'low' | 'medium' | 'high'
+			isPinned: boolean
+		}>
+	) => {
+		setUpdateActionError('')
+		setIsUpdateMutating(true)
+		try {
+			await editUpdate(updateId, payload)
+			await reloadUpdates()
+			setActionAlert({ type: 'success', message: 'Update edited successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to edit update'
+			setUpdateActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsUpdateMutating(false)
+		}
+	}
+
+	const handleDeleteUpdate = async (updateId: string) => {
+		setUpdateActionError('')
+		setIsUpdateMutating(true)
+		try {
+			await deleteUpdate(updateId)
+			await reloadUpdates()
+			setActionAlert({ type: 'success', message: 'Update deleted successfully.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to delete update'
+			setUpdateActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsUpdateMutating(false)
+		}
+	}
+
+	const handleTogglePinned = async (updateId: string, isPinned: boolean) => {
+		setUpdateActionError('')
+		setIsUpdateMutating(true)
+		try {
+			await setUpdatePinned(updateId, isPinned)
+			await reloadUpdates()
+			setActionAlert({ type: 'success', message: isPinned ? 'Update pinned.' : 'Update unpinned.' })
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to update pin state'
+			setUpdateActionError(message)
+			setActionAlert({ type: 'error', message })
+		} finally {
+			setIsUpdateMutating(false)
+		}
+	}
+
+	const handleMarkUpdateRead = async (updateId: string) => {
+		setUpdateActionError('')
+		setIsUpdateMutating(true)
+		try {
+			await markUpdateRead(updateId)
+			await reloadUpdates()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to mark update as read'
+			setUpdateActionError(message)
+		} finally {
+			setIsUpdateMutating(false)
+		}
+	}
+
+	const loadMoreUpdates = async () => {
+		const nextLimit = Math.min(updatesLimit + 30, 120)
+		setIsLoadingMoreUpdates(true)
+		try {
+			const updatesPage = await getUpdatesFeed({ page: 1, limit: nextLimit })
+			setUpdatesData(updatesPage.items)
+			setUpdatesLimit(nextLimit)
+		} catch (error) {
+			setUpdatesError(error instanceof Error ? error.message : 'Failed to load more updates')
+		} finally {
+			setIsLoadingMoreUpdates(false)
+		}
+	}
+
 	useEffect(() => {
-		void Promise.all([fetchTeamsAndMembers(), fetchProjectsData()])
-	}, [fetchProjectsData, fetchTeamsAndMembers])
+		void Promise.all([fetchTeamsAndMembers(), fetchProjectsData(), reloadUpdates()])
+	}, [fetchProjectsData, fetchTeamsAndMembers, reloadUpdates])
 
 	useEffect(() => {
 		if (projectsData.length === 0) {
@@ -1205,6 +1346,8 @@ const Dashboard_CEO = () => {
 					activePanel={activePanel}
 					onInviteMember={() => openModalById('invite')}
 					onCreateProject={() => openModalById('createProject')}
+					onOpenUpdates={() => switchPanel('updates')}
+					unreadUpdatesCount={updatesUnreadCount}
 				/>
 
 				{actionAlert && (
@@ -1259,6 +1402,26 @@ const Dashboard_CEO = () => {
 						onToggleStatus={(task) => void handleToggleTaskStatus(task)}
 						onDeleteTask={(task) => void handleDeleteTask(task)}
 						onEditTask={handleEditTask}
+					/>
+
+					<UpdatesPanel
+						isActive={activePanel === 'updates'}
+						isLoading={isUpdatesLoading}
+						error={updatesError}
+						actionError={updateActionError}
+						updates={updatesData}
+						unreadCount={updatesUnreadCount}
+						projects={projectsData}
+						teams={teamsData}
+						isMutating={isUpdateMutating}
+						onCreateUpdate={(payload) => void handleCreateUpdate(payload)}
+						onEditUpdate={(updateId, payload) => void handleEditUpdate(updateId, payload)}
+						onDeleteUpdate={(updateId) => void handleDeleteUpdate(updateId)}
+						onTogglePin={(updateId, isPinned) => void handleTogglePinned(updateId, isPinned)}
+						onMarkRead={(updateId) => void handleMarkUpdateRead(updateId)}
+						onLoadMore={() => void loadMoreUpdates()}
+						isLoadingMore={isLoadingMoreUpdates}
+						canLoadMore={updatesData.length >= updatesLimit && updatesLimit < 120}
 					/>
 
 					<div className={`ceo-panel ${activePanel === 'members' ? 'active' : ''}`}>

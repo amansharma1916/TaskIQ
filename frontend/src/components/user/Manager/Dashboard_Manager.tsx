@@ -11,7 +11,9 @@ import ManagerTasksPanel from './components/panels/ManagerTasksPanel'
 import ManagerMembersPanel from './components/panels/ManagerMembersPanel'
 import ManagerTeamsPanel from './components/panels/ManagerTeamsPanel'
 import ManagerActivityPanel from './components/panels/ManagerActivityPanel'
+import ManagerUpdatesPanel from './components/panels/ManagerUpdatesPanel'
 import ManagerMyAssignmentsPanel from './components/panels/ManagerMyAssignmentsPanel'
+import SettingsPanel from '../CEOs/Components/panels/SettingsPanel'
 import { useManagerDashboardData } from './hooks/useManagerDashboardData'
 import {
   assignTask,
@@ -22,6 +24,7 @@ import {
 } from '../../../services/tasks'
 import { assignTeams, createProject, revokeTeams, updateProject } from '../../../services/projects'
 import { addTeamMember, createTeam, removeTeamMember, sendManagerInvite, setTeamLead } from '../../../services/teams'
+import { createUpdate as createProjectUpdate, markUpdateRead } from '../../../services/updates'
 import type { ApiProjectStatus, ApiTaskStatus } from '../CEOs/types/api.types'
 import type { ManagerPanelId, ManagerTaskQuery } from './types/manager.types'
 
@@ -42,12 +45,15 @@ const Dashboard_Manager = () => {
   const navigate = useNavigate()
   const apiBase = import.meta.env.VITE_BACKEND_URL ?? ''
   const [activePanel, setActivePanel] = useState<ManagerPanelId>('projects')
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [isProjectMutating, setIsProjectMutating] = useState(false)
   const [projectActionError, setProjectActionError] = useState('')
   const [isTaskMutating, setIsTaskMutating] = useState(false)
   const [taskActionError, setTaskActionError] = useState('')
   const [isTeamMutating, setIsTeamMutating] = useState(false)
   const [teamActionError, setTeamActionError] = useState('')
+  const [isUpdateMutating, setIsUpdateMutating] = useState(false)
+  const [updateActionError, setUpdateActionError] = useState('')
   const [actionAlert, setActionAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
@@ -68,6 +74,8 @@ const Dashboard_Manager = () => {
     tasks,
     teams,
     activity,
+    updates,
+    updatesUnreadCount,
     members,
     myAssignedTasks,
     teamBacklogTasks,
@@ -80,6 +88,10 @@ const Dashboard_Manager = () => {
     isActivityLoadingMore,
     canLoadMoreActivity,
     loadMoreActivity,
+    isUpdatesLoadingMore,
+    canLoadMoreUpdates,
+    loadMoreUpdates,
+    reloadUpdates,
   } = useManagerDashboardData()
 
   const user = getAuthUser()
@@ -91,6 +103,16 @@ const Dashboard_Manager = () => {
   const onSignOut = async () => {
     await logoutSession(apiBase)
     navigate('/login')
+  }
+
+  const switchPanel = (panel: ManagerPanelId) => {
+    setActivePanel(panel)
+    setProfileMenuOpen(false)
+  }
+
+  const handleProfileSignOut = () => {
+    setProfileMenuOpen(false)
+    void onSignOut()
   }
 
   const handleCreateProject = async (payload: {
@@ -340,23 +362,65 @@ const Dashboard_Manager = () => {
     }
   }
 
+  const handleCreateUpdate = async (payload: {
+    title: string
+    body: string
+    priority: 'low' | 'medium' | 'high'
+    isPinned?: boolean
+    projectId?: string | null
+    audience: {
+      mode: 'company' | 'teams' | 'projectTeams'
+      teamIds?: string[]
+      roles?: Array<'CEO' | 'Manager' | 'Employee'>
+    }
+  }) => {
+    setUpdateActionError('')
+    setIsUpdateMutating(true)
+
+    try {
+      await createProjectUpdate(payload)
+      await reloadUpdates()
+      setActionAlert({ type: 'success', message: 'Update posted successfully.' })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to post update'
+      setUpdateActionError(message)
+      setActionAlert({ type: 'error', message })
+    } finally {
+      setIsUpdateMutating(false)
+    }
+  }
+
+  const handleMarkUpdateRead = async (updateId: string) => {
+    try {
+      await markUpdateRead(updateId)
+      await reloadUpdates()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to mark update as read'
+      setUpdateActionError(message)
+    }
+  }
+
   return (
     <div className="ceo-dashboard-root">
       <ManagerSidebar
         activePanel={activePanel}
+        profileMenuOpen={profileMenuOpen}
         displayCompanyName={displayCompanyName}
         displayDesignation={displayDesignation}
         displayUserName={displayUserName}
         displayUserInitials={displayUserInitials}
-        onSwitchPanel={setActivePanel}
-        onSignOut={() => void onSignOut()}
+        onToggleProfileMenu={() => setProfileMenuOpen((prev) => !prev)}
+        onOpenPreferences={() => switchPanel('settings')}
+        onSwitchPanel={switchPanel}
+        onSignOut={handleProfileSignOut}
       />
 
       <main className="ceo-main">
         <ManagerTopbar
           activePanel={activePanel}
           onRefresh={() => void reloadAll()}
-          onOpenActivity={() => setActivePanel('activity')}
+          onOpenUpdates={() => switchPanel('updates')}
+          unreadUpdatesCount={updatesUnreadCount}
         />
 
         {actionAlert ? (
@@ -445,6 +509,24 @@ const Dashboard_Manager = () => {
             canLoadMore={canLoadMoreActivity}
             onLoadMore={() => void loadMoreActivity()}
           />
+          <ManagerUpdatesPanel
+            isActive={activePanel === 'updates'}
+            isLoading={state.isLoading}
+            error={state.error}
+            updates={updates}
+            unreadCount={updatesUnreadCount}
+            canPostUpdates={user?.role === 'Manager'}
+            projects={projects}
+            teams={teams}
+            isPostingUpdate={isUpdateMutating}
+            updateActionError={updateActionError}
+            onCreateUpdate={(payload) => void handleCreateUpdate(payload)}
+            onMarkUpdateRead={(updateId) => void handleMarkUpdateRead(updateId)}
+            isLoadingMore={isUpdatesLoadingMore}
+            canLoadMore={canLoadMoreUpdates}
+            onLoadMore={() => void loadMoreUpdates()}
+          />
+          <SettingsPanel isActive={activePanel === 'settings'} sections={['Profile', 'Security']} />
         </section>
       </main>
     </div>

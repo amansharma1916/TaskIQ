@@ -2,10 +2,13 @@ import type { ManagerPanelId } from '../../types/manager.types'
 
 type ManagerSidebarProps = {
 	activePanel: ManagerPanelId
+	profileMenuOpen: boolean
 	displayCompanyName: string
 	displayDesignation: string
 	displayUserName: string
 	displayUserInitials: string
+	onToggleProfileMenu: () => void
+	onOpenPreferences: () => void
 	onSwitchPanel: (panel: ManagerPanelId) => void
 	onSignOut: () => void
 }
@@ -16,15 +19,19 @@ const panelItems: Array<{ id: ManagerPanelId; label: string }> = [
 	{ id: 'members', label: 'Members' },
 	{ id: 'my-assignments', label: 'My Assignments' },
 	{ id: 'teams', label: 'Teams' },
+	{ id: 'updates', label: 'Updates' },
 	{ id: 'activity', label: 'Activity' },
 ]
 
 const ManagerSidebar = ({
 	activePanel,
+	profileMenuOpen,
 	displayCompanyName,
 	displayDesignation,
 	displayUserName,
 	displayUserInitials,
+	onToggleProfileMenu,
+	onOpenPreferences,
 	onSwitchPanel,
 	onSignOut,
 }: ManagerSidebarProps) => {
@@ -58,16 +65,24 @@ const ManagerSidebar = ({
 			</div>
 
 			<div className="ceo-user-area">
-				<div className="ceo-user-card">
+				<button className="ceo-user-card" onClick={onToggleProfileMenu} type="button">
 					<div className="ceo-avatar">{displayUserInitials}</div>
 					<div>
 						<div className="ceo-user-name">{displayUserName}</div>
 						<div className="ceo-user-role">{displayDesignation}</div>
 					</div>
-				</div>
-				<button className="ceo-btn-outline" onClick={onSignOut} type="button" style={{ width: '100%' }}>
-					Sign Out
 				</button>
+
+				{profileMenuOpen && (
+					<div className="ceo-profile-menu ceo-profile-menu-bottom">
+						<button onClick={onOpenPreferences} type="button">
+							Settings
+						</button>
+						<button onClick={onSignOut} type="button" className="danger">
+							Sign Out
+						</button>
+					</div>
+				)}
 			</div>
 		</aside>
 	)

@@ -3,6 +3,7 @@ import { getProjects } from '../../../../services/projects'
 import { getTasks, getTasksPage } from '../../../../services/tasks'
 import { getTeams } from '../../../../services/teams'
 import { getActivityFeed } from '../../../../services/activity'
+import { getUpdatesFeed, getUpdatesUnreadCount } from '../../../../services/updates'
 import { authorizedFetch } from '../../../../services/apiClient'
 import { getAuthUser } from '../../../../services/auth'
 import { mapApiProjectToManagerCard, mapApiTaskToManagerTaskRow, mapApiTeamToManagerTeamCard } from '../utils/managerMappers'
@@ -15,6 +16,7 @@ import type {
 	ManagerTaskQuery,
 	ManagerTaskRow,
 	ManagerTeamCard,
+	ManagerUpdateItem,
 } from '../types/manager.types'
 import type { ApiMember, PaginatedTaskListParams } from '../../CEOs/types/api.types'
 
@@ -23,6 +25,8 @@ type UseManagerDashboardDataResult = {
 	tasks: ManagerTaskRow[]
 	teams: ManagerTeamCard[]
 	activity: ManagerActivityItem[]
+	updates: ManagerUpdateItem[]
+	updatesUnreadCount: number
 	myAssignedTasks: ManagerTaskRow[]
 	teamBacklogTasks: ManagerTaskRow[]
 	state: ManagerDataState
@@ -35,6 +39,10 @@ type UseManagerDashboardDataResult = {
 	isActivityLoadingMore: boolean
 	canLoadMoreActivity: boolean
 	loadMoreActivity: () => Promise<void>
+	isUpdatesLoadingMore: boolean
+	canLoadMoreUpdates: boolean
+	loadMoreUpdates: () => Promise<void>
+	reloadUpdates: () => Promise<void>
 }
 
 const DEFAULT_TASK_QUERY: ManagerTaskQuery = {
@@ -80,6 +88,8 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 	const [teams, setTeams] = useState<ManagerTeamCard[]>([])
 	const [activity, setActivity] = useState<ManagerActivityItem[]>([])
 	const [members, setMembers] = useState<ManagerMemberOption[]>([])
+	const [updates, setUpdates] = useState<ManagerUpdateItem[]>([])
+	const [updatesUnreadCount, setUpdatesUnreadCount] = useState(0)
 	const [myAssignedTasks, setMyAssignedTasks] = useState<ManagerTaskRow[]>([])
 	const [teamBacklogTasks, setTeamBacklogTasks] = useState<ManagerTaskRow[]>([])
 	const [taskQuery, setTaskQueryState] = useState<ManagerTaskQuery>(DEFAULT_TASK_QUERY)
@@ -90,7 +100,9 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		totalPages: 1,
 	})
 	const [activityLimit, setActivityLimit] = useState(50)
+	const [updatesLimit, setUpdatesLimit] = useState(30)
 	const [isActivityLoadingMore, setIsActivityLoadingMore] = useState(false)
+	const [isUpdatesLoadingMore, setIsUpdatesLoadingMore] = useState(false)
 	const [state, setState] = useState<ManagerDataState>({
 		isLoading: true,
 		error: '',
@@ -122,12 +134,14 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		setState({ isLoading: true, error: '' })
 
 		try {
-			const [projectRows, taskRows, teamRows, activityRows, memberRows] = await Promise.all([
+			const [projectRows, taskRows, teamRows, activityRows, memberRows, updatesPage, unreadCount] = await Promise.all([
 				getProjects(),
 				getTasks(),
 				getTeams(),
 				getActivityFeed(activityLimit),
 				getCompanyMembers(),
+				getUpdatesFeed({ limit: updatesLimit, page: 1 }),
+				getUpdatesUnreadCount(),
 			])
 
 			const authUser = getAuthUser()
@@ -151,6 +165,8 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 			const mappedTasks = taskRows.map(mapApiTaskToManagerTaskRow)
 			setTeams(teamRows.map(mapApiTeamToManagerTeamCard))
 			setActivity(activityRows)
+			setUpdates(updatesPage.items)
+			setUpdatesUnreadCount(unreadCount)
 
 			const assignedToMe = mappedTasks.filter((task) => task.assigneeMemberId && task.assigneeMemberId === currentMemberId)
 			const teamBacklog = currentMemberTeamId
@@ -174,7 +190,7 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 				error: error instanceof Error ? error.message : 'Failed to load manager dashboard data',
 			})
 		}
-	}, [activityLimit])
+	}, [activityLimit, updatesLimit])
 
 	const loadMoreActivity = useCallback(async () => {
 		const newLimit = Math.min(activityLimit + 50, 200)
@@ -188,7 +204,30 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		}
 	}, [activityLimit])
 
+	const reloadUpdates = useCallback(async () => {
+		const [updatesPage, unreadCount] = await Promise.all([
+			getUpdatesFeed({ limit: updatesLimit, page: 1 }),
+			getUpdatesUnreadCount(),
+		])
+
+		setUpdates(updatesPage.items)
+		setUpdatesUnreadCount(unreadCount)
+	}, [updatesLimit])
+
+	const loadMoreUpdates = useCallback(async () => {
+		const newLimit = Math.min(updatesLimit + 30, 120)
+		setIsUpdatesLoadingMore(true)
+		try {
+			const updatesPage = await getUpdatesFeed({ limit: newLimit, page: 1 })
+			setUpdates(updatesPage.items)
+			setUpdatesLimit(newLimit)
+		} finally {
+			setIsUpdatesLoadingMore(false)
+		}
+	}, [updatesLimit])
+
 	const canLoadMoreActivity = activity.length >= activityLimit && activityLimit < 200
+	const canLoadMoreUpdates = updates.length >= updatesLimit && updatesLimit < 120
 
 	useEffect(() => {
 		void reloadAll()
@@ -203,6 +242,8 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		tasks,
 		teams,
 		activity,
+		updates,
+		updatesUnreadCount,
 		members,
 		myAssignedTasks,
 		teamBacklogTasks,
@@ -215,5 +256,9 @@ export const useManagerDashboardData = (): UseManagerDashboardDataResult => {
 		isActivityLoadingMore,
 		canLoadMoreActivity,
 		loadMoreActivity,
+		isUpdatesLoadingMore,
+		canLoadMoreUpdates,
+		loadMoreUpdates,
+		reloadUpdates,
 	}
 }

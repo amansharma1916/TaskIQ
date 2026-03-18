@@ -4,8 +4,10 @@ import '../../../styles/user/CEOs/ProjectDetails.css'
 import { authorizedFetch } from '../../../services/apiClient'
 import { getAuthUser } from '../../../services/auth'
 import { assignTeams, getProjectById, revokeTeams, updateProject } from '../../../services/projects'
+import { createUpdate, getUpdatesFeed, markUpdateRead } from '../../../services/updates'
 import { getTasks, updateTaskStatus } from '../../../services/tasks'
 import type { ApiProject, ApiProjectStatus, ApiTask, ApiTaskStatus, ApiTeam } from './types/api.types'
+import type { ManagerUpdateItem } from '../Manager/types/manager.types'
 
 const toInputDate = (value?: string | null): string => {
 	if (!value) {
@@ -34,6 +36,15 @@ const ProjectDetails = () => {
 	const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
 	const [projectTasks, setProjectTasks] = useState<ApiTask[]>([])
 	const [tasksLoading, setTasksLoading] = useState(false)
+	const [updatesLoading, setUpdatesLoading] = useState(false)
+	const [postingUpdate, setPostingUpdate] = useState(false)
+	const [updates, setUpdates] = useState<ManagerUpdateItem[]>([])
+	const [updateForm, setUpdateForm] = useState({
+		title: '',
+		body: '',
+		priority: 'medium' as 'low' | 'medium' | 'high',
+		isPinned: false,
+	})
 	const [form, setForm] = useState({
 		projectName: '',
 		projectDescription: '',
@@ -69,6 +80,19 @@ const ProjectDetails = () => {
 		}
 	}
 
+	const loadProjectUpdates = async (nextProjectId: string) => {
+		setUpdatesLoading(true)
+		try {
+			const updatesPage = await getUpdatesFeed({ projectId: nextProjectId, limit: 40, page: 1 })
+			setUpdates(updatesPage.items)
+		} catch (requestError) {
+			const nextMessage = requestError instanceof Error ? requestError.message : 'Unable to load project updates.'
+			setMessage({ type: 'error', text: nextMessage })
+		} finally {
+			setUpdatesLoading(false)
+		}
+	}
+
 	const refreshProject = async () => {
 		if (!projectId) {
 			setError('Project id is missing from the route.')
@@ -92,6 +116,7 @@ const ProjectDetails = () => {
 			setProject(projectData)
 			setTeams(teamsData)
 			void loadProjectTasks(projectData._id)
+			void loadProjectUpdates(projectData._id)
 			setForm({
 				projectName: projectData.projectName,
 				projectDescription: projectData.projectDescription ?? '',
@@ -237,6 +262,60 @@ const ProjectDetails = () => {
 		}
 	}
 
+	const handleCreateProjectUpdate = async () => {
+		if (!projectId) {
+			return
+		}
+
+		if (!updateForm.title.trim() || !updateForm.body.trim()) {
+			setMessage({ type: 'error', text: 'Update title and message are required.' })
+			return
+		}
+
+		setPostingUpdate(true)
+		try {
+			await createUpdate({
+				title: updateForm.title.trim(),
+				body: updateForm.body.trim(),
+				priority: updateForm.priority,
+				isPinned: updateForm.isPinned,
+				projectId,
+				audience: {
+					mode: 'projectTeams',
+					roles: [],
+				},
+			})
+
+			setUpdateForm({
+				title: '',
+				body: '',
+				priority: 'medium',
+				isPinned: false,
+			})
+			await loadProjectUpdates(projectId)
+			setMessage({ type: 'success', text: 'Project update posted.' })
+		} catch (requestError) {
+			const nextMessage = requestError instanceof Error ? requestError.message : 'Unable to post project update.'
+			setMessage({ type: 'error', text: nextMessage })
+		} finally {
+			setPostingUpdate(false)
+		}
+	}
+
+	const handleMarkUpdateRead = async (updateId: string) => {
+		if (!projectId) {
+			return
+		}
+
+		try {
+			await markUpdateRead(updateId)
+			await loadProjectUpdates(projectId)
+		} catch (requestError) {
+			const nextMessage = requestError instanceof Error ? requestError.message : 'Unable to mark update as read.'
+			setMessage({ type: 'error', text: nextMessage })
+		}
+	}
+
 	if (loading) {
 		return <div className="pd-loading">Loading project details...</div>
 	}
@@ -333,6 +412,86 @@ const ProjectDetails = () => {
 								<button className="pd-btn pd-btn-primary" onClick={() => void handleSave()} type="button" disabled={saving}>
 									{saving ? 'Saving...' : 'Save Changes'}
 								</button>
+							</article>
+
+							<article className="pd-card">
+								<div className="pd-card-head">
+									<h3>Project Updates</h3>
+								</div>
+								<div className="pd-form-grid">
+									<label className="pd-field">
+										Update Title
+										<input
+											type="text"
+											value={updateForm.title}
+											onChange={(event) => setUpdateForm((prev) => ({ ...prev, title: event.target.value }))}
+											maxLength={160}
+										/>
+									</label>
+									<label className="pd-field">
+										Priority
+										<select
+											value={updateForm.priority}
+											onChange={(event) =>
+												setUpdateForm((prev) => ({ ...prev, priority: event.target.value as 'low' | 'medium' | 'high' }))
+											}
+										>
+											<option value="low">Low</option>
+											<option value="medium">Medium</option>
+											<option value="high">High</option>
+										</select>
+									</label>
+								</div>
+								<label className="pd-field pd-field-full">
+									Message
+									<textarea
+										value={updateForm.body}
+										onChange={(event) => setUpdateForm((prev) => ({ ...prev, body: event.target.value }))}
+										rows={4}
+										maxLength={5000}
+									/>
+								</label>
+								<label className="pd-team-check">
+									<input
+										type="checkbox"
+										checked={updateForm.isPinned}
+										onChange={(event) => setUpdateForm((prev) => ({ ...prev, isPinned: event.target.checked }))}
+									/>
+									<span>Pin this update</span>
+								</label>
+								<button
+									className="pd-btn pd-btn-primary"
+									onClick={() => void handleCreateProjectUpdate()}
+									type="button"
+									disabled={postingUpdate}
+								>
+									{postingUpdate ? 'Posting...' : 'Post Project Update'}
+								</button>
+
+								{updatesLoading ? <div className="pd-meta-text">Loading updates...</div> : null}
+								{!updatesLoading && updates.length === 0 ? <div className="pd-meta-text">No project updates yet.</div> : null}
+								{updates.map((update) => (
+									<div key={update.id} className="pd-task-item">
+										<div className="pd-task-main">
+											<div className="pd-task-title-row">
+												<strong>{update.title}</strong>
+												<span>{update.priority}</span>
+											</div>
+											<p>{update.body}</p>
+											<div className="pd-task-meta">
+												<span>By {update.authorName}</span>
+												<span>{update.time}</span>
+												{update.isPinned ? <span>Pinned</span> : null}
+												{!update.isRead ? <span>Unread</span> : <span>Read</span>}
+											</div>
+										</div>
+										{!update.isRead ? (
+											<button className="pd-btn pd-btn-outline" type="button" onClick={() => void handleMarkUpdateRead(update.id)}>
+												Mark Read
+											</button>
+										) : null}
+									</div>
+								))}
 							</article>
 
 							<article className="pd-card">

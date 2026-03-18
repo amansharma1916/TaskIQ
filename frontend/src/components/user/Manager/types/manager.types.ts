@@ -1,7 +1,11 @@
 import type { ApiTaskPriority, ApiTaskStatus, TaskListSortBy, TaskListSortOrder } from '../../CEOs/types/api.types'
 import type { ApiProjectStatus } from '../../CEOs/types/api.types'
 
-export type ManagerPanelId = 'projects' | 'tasks' | 'members' | 'teams' | 'activity' | 'my-assignments'
+export type ManagerPanelId = 'projects' | 'tasks' | 'members' | 'teams' | 'updates' | 'activity' | 'my-assignments' | 'settings'
+
+export type ManagerUpdatePriority = 'low' | 'medium' | 'high'
+export type ManagerUpdateAudienceMode = 'company' | 'teams' | 'projectTeams'
+export type ManagerUpdateVisibilityRole = 'CEO' | 'Manager' | 'Employee'
 
 export type ManagerProjectCard = {
 	id: string
@@ -73,6 +77,24 @@ export type ManagerActivityItem = {
 	time: string
 	rawDate: string
 	entity: 'project' | 'task' | 'team' | 'member' | 'system'
+}
+
+export type ManagerUpdateItem = {
+	id: string
+	title: string
+	body: string
+	priority: ManagerUpdatePriority
+	isPinned: boolean
+	audienceMode: ManagerUpdateAudienceMode
+	visibleRoles: ManagerUpdateVisibilityRole[]
+	teamNames: string[]
+	projectId: string | null
+	projectName: string | null
+	authorName: string
+	authorRole: string
+	createdAt: string
+	time: string
+	isRead: boolean
 }
 
 export type ManagerDataState = {

@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import '../../../styles/user/CEOs/Dashboard_CEO.css'
 import '../../../styles/user/CEOs/TaskPanel.css'
 import '../../../styles/user/Employee/Dashboard_Employee.css'
+import '../../../styles/user/Employee/EmployeeUpdatesCard.css'
 import { getAuthUser, logoutSession } from '../../../services/auth'
+import { getUpdatesFeed, getUpdatesUnreadCount, markUpdateRead } from '../../../services/updates'
 import type { EmployeePanelId } from './types/employee.types'
 import { useEmployeeDashboardData } from './hooks/useEmployeeDashboardData'
 import TasksPanel_Employee from './components/panels/TasksPanel_Employee'
+import type { ManagerUpdateItem } from '../Manager/types/manager.types'
+import SettingsPanel from '../CEOs/Components/panels/SettingsPanel'
 
 const getInitials = (name?: string): string => {
   if (!name) {
@@ -46,22 +50,62 @@ const Dashboard_Employee = () => {
   const displayUserName = user?.name?.trim() || 'Employee'
   const displayUserInitials = getInitials(displayUserName)
 
-  const [showSignOutMenu, setShowSignOutMenu] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [updates, setUpdates] = useState<ManagerUpdateItem[]>([])
+  const [updatesUnreadCount, setUpdatesUnreadCount] = useState(0)
+  const [updatesLoading, setUpdatesLoading] = useState(false)
+  const [updatesError, setUpdatesError] = useState('')
+
+  const loadEmployeeUpdates = async () => {
+    setUpdatesLoading(true)
+    setUpdatesError('')
+    try {
+      const [updatesPage, unread] = await Promise.all([
+        getUpdatesFeed({ page: 1, limit: 5 }),
+        getUpdatesUnreadCount(),
+      ])
+      setUpdates(updatesPage.items)
+      setUpdatesUnreadCount(unread)
+    } catch (error) {
+      setUpdates([])
+      setUpdatesError(error instanceof Error ? error.message : 'Failed to load updates')
+    } finally {
+      setUpdatesLoading(false)
+    }
+  }
+
+  const handleMarkUpdateRead = async (updateId: string) => {
+    try {
+      await markUpdateRead(updateId)
+      await loadEmployeeUpdates()
+    } catch (error) {
+      setUpdatesError(error instanceof Error ? error.message : 'Failed to mark update as read')
+    }
+  }
 
   useEffect(() => {
-    if (!showSignOutMenu) {
+    if (!profileMenuOpen) {
       return
     }
 
-    const onClickAway = () => setShowSignOutMenu(false)
+    const onClickAway = () => setProfileMenuOpen(false)
     window.addEventListener('click', onClickAway)
 
     return () => window.removeEventListener('click', onClickAway)
-  }, [showSignOutMenu])
+  }, [profileMenuOpen])
+
+  useEffect(() => {
+    void loadEmployeeUpdates()
+  }, [])
 
   const onSignOut = async () => {
     await logoutSession(apiBase)
     navigate('/login')
+  }
+
+  const switchPanel = (panel: EmployeePanelId) => {
+    setActivePanel(panel)
+    setProfileMenuOpen(false)
   }
 
   return (
@@ -81,7 +125,7 @@ const Dashboard_Employee = () => {
             <button
               className={`ceo-nav-item ${activePanel === 'overview' ? 'active' : ''}`}
               type="button"
-              onClick={() => setActivePanel('overview')}
+              onClick={() => switchPanel('overview')}
             >
               <span>01</span>
               Overview
@@ -89,7 +133,7 @@ const Dashboard_Employee = () => {
             <button
               className={`ceo-nav-item ${activePanel === 'tasks' ? 'active' : ''}`}
               type="button"
-              onClick={() => setActivePanel('tasks')}
+              onClick={() => switchPanel('tasks')}
             >
               <span>02</span>
               My Tasks
@@ -98,8 +142,11 @@ const Dashboard_Employee = () => {
         </div>
 
         <div className="ceo-user-area" onClick={(event) => event.stopPropagation()}>
-          {showSignOutMenu ? (
+          {profileMenuOpen ? (
             <div className="ceo-profile-menu ceo-profile-menu-bottom">
+              <button type="button" onClick={() => switchPanel('settings')}>
+                Settings
+              </button>
               <button type="button" className="danger" onClick={() => void onSignOut()}>
                 Sign out
               </button>
@@ -108,7 +155,7 @@ const Dashboard_Employee = () => {
           <button
             className="ceo-user-card employee-user-card-button"
             type="button"
-            onClick={() => setShowSignOutMenu((prev) => !prev)}
+            onClick={() => setProfileMenuOpen((prev) => !prev)}
           >
             <span className="ceo-avatar employee-avatar">{displayUserInitials}</span>
             <span className="employee-user-meta">
@@ -126,7 +173,9 @@ const Dashboard_Employee = () => {
             <button
               className="ceo-btn-outline"
               type="button"
-              onClick={() => void reloadDashboard(false)}
+              onClick={() => {
+                void Promise.all([reloadDashboard(false), loadEmployeeUpdates()])
+              }}
               disabled={state.isRefreshing || state.isLoading}
             >
               {state.isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -166,7 +215,7 @@ const Dashboard_Employee = () => {
             <article className="ceo-card employee-overview-card">
               <div className="ceo-card-head">
                 <h3>Focus for Today</h3>
-                <button className="ceo-btn-primary" type="button" onClick={() => setActivePanel('tasks')}>
+                <button className="ceo-btn-primary" type="button" onClick={() => switchPanel('tasks')}>
                   Open Tasks
                 </button>
               </div>
@@ -176,6 +225,41 @@ const Dashboard_Employee = () => {
               <p className="ceo-empty-text">
                 Showing {taskPageState.total} total tasks from page {taskPageState.page}.
               </p>
+            </article>
+
+            <article className="ceo-card employee-updates-card">
+              <div className="ceo-card-head employee-updates-head">
+                <h3>Company Updates</h3>
+                <span className="employee-updates-badge">Unread: {updatesUnreadCount}</span>
+              </div>
+              {updatesLoading ? <p className="ceo-empty-text">Loading updates...</p> : null}
+              {!updatesLoading && updatesError ? <p className="employee-updates-error">{updatesError}</p> : null}
+              {!updatesLoading && !updatesError && updates.length === 0 ? (
+                <p className="ceo-empty-text">No updates available right now.</p>
+              ) : null}
+              {!updatesLoading && !updatesError && updates.length > 0 ? (
+                <div className="employee-updates-list">
+                  {updates.map((update) => (
+                    <div key={update.id} className={`employee-update-item ${update.isRead ? '' : 'unread'}`}>
+                      <div className="employee-update-top">
+                        <strong>{update.title}</strong>
+                        <span className={`employee-update-priority ${update.priority}`}>{update.priority}</span>
+                      </div>
+                      <p>{update.body}</p>
+                      <div className="employee-update-meta">
+                        <span>{update.authorName}</span>
+                        <span>{update.time}</span>
+                        {update.isPinned ? <span>Pinned</span> : null}
+                      </div>
+                      {!update.isRead ? (
+                        <button className="ceo-btn-outline" type="button" onClick={() => void handleMarkUpdateRead(update.id)}>
+                          Mark as read
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </article>
           </section>
 
@@ -193,6 +277,7 @@ const Dashboard_Employee = () => {
             canUpdateTaskStatus={canUpdateTaskStatus}
             onUpdateTaskStatus={onUpdateTaskStatus}
           />
+          <SettingsPanel isActive={activePanel === 'settings'} sections={['Profile', 'Security']} />
         </section>
       </main>
     </div>
