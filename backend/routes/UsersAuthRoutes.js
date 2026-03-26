@@ -307,6 +307,7 @@ router.put("/me", authenticateJWT, authorizeRoles("CEO", "Manager", "Employee"),
 		}
 
 		const user = await Users.findById(req.user.userId);
+		const user_member = await Members.findOne({ userId: req.user.userId });
 		if (!user) {
 			return res.status(404).json({ message: "User not found" });
 		}
@@ -318,6 +319,9 @@ router.put("/me", authenticateJWT, authorizeRoles("CEO", "Manager", "Employee"),
 
 		user.name = normalizedName;
 		user.workEmail = normalizedWorkEmail;
+		user_member.memberName = normalizedName;
+		user_member.memberEmail = normalizedWorkEmail;
+		await user_member.save();
 		await user.save();
 
 		return res.status(200).json({
