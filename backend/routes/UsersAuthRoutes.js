@@ -4,13 +4,67 @@ import Users from "../database/Schemas/Users.js";
 import Company from "../database/Schemas/Company.js";
 import Invite from "../database/Schemas/Invite.js";
 import Members from "../database/Schemas/Members.js";
+import PasswordResetToken from "../database/Schemas/PasswordResetToken.js";
 import { buildAuthResponse, hashRefreshToken } from "../utilities/authTokens.js";
+import { createPasswordResetToken, getPasswordResetExpiryDate, hashPasswordResetToken } from "../utilities/resetPasswordTokens.js";
+import { sendPasswordResetEmail } from "../utilities/sendEmail.js";
+import logActivity from "../utilities/logActivity.js";
 import { authenticateJWT, authorizeRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const TEAM_SIZE_RANGES = ["1-10", "11-50", "51-200", "201+"];
+const PASSWORD_RESET_TTL_HOURS = Number(process.env.PASSWORD_RESET_TOKEN_TTL_HOURS || 1);
+const FORGOT_PASSWORD_MAX_ATTEMPTS = Number(process.env.FORGOT_PASSWORD_MAX_ATTEMPTS || 3);
+const RESET_PASSWORD_MAX_ATTEMPTS = Number(process.env.RESET_PASSWORD_MAX_ATTEMPTS || 10);
+const RATE_LIMIT_WINDOW_MS = Number(process.env.PASSWORD_RESET_RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000);
+const inMemoryRateLimitStore = new Map();
 
 const normalizeEmail = (value) => String(value).toLowerCase().trim();
+
+const consumeRateLimit = (key, maxAttempts, windowMs) => {
+	const now = Date.now();
+	const current = inMemoryRateLimitStore.get(key) || [];
+	const fresh = current.filter((ts) => now - ts < windowMs);
+
+	if (fresh.length >= maxAttempts) {
+		inMemoryRateLimitStore.set(key, fresh);
+		return true;
+	}
+
+	fresh.push(now);
+	inMemoryRateLimitStore.set(key, fresh);
+	return false;
+};
+
+const getRequestIp = (req) => {
+	if (req.ip) {
+		return req.ip;
+	}
+
+	const forwardedFor = req.headers["x-forwarded-for"];
+	if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+		return forwardedFor.split(",")[0].trim();
+	}
+
+	return "unknown";
+};
+
+const getResetBaseUrl = () => {
+	const base = process.env.RESET_PASSWORD_LINK_BASE_URL || process.env.FRONTEND_URL || "http://localhost:5173";
+	return String(base).replace(/\/$/, "");
+};
+
+const createLogRequestForUser = (user) => ({
+	authz: {
+		companyId: user.companyId,
+		effectiveRole: user.role,
+	},
+	user: {
+		userId: user._id,
+		companyId: user.companyId,
+		role: user.role,
+	},
+});
 
 const buildSafeProfile = (user) => ({
 	id: String(user._id),
@@ -132,6 +186,172 @@ router.post("/login", async (req, res) => {
 			accessToken: session.accessToken,
 			refreshToken: session.refreshToken,
 		});
+	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.post("/forgot-password", async (req, res) => {
+	const genericMessage = "If an account exists for this email, a password reset link has been sent.";
+
+	try {
+		const { workEmail } = req.body;
+		if (!workEmail) {
+			return res.status(400).json({ message: "workEmail is required" });
+		}
+
+		const normalizedEmail = normalizeEmail(workEmail);
+		const requestIp = getRequestIp(req);
+
+		const emailLimited = consumeRateLimit(
+			`forgot:email:${normalizedEmail}`,
+			FORGOT_PASSWORD_MAX_ATTEMPTS,
+			RATE_LIMIT_WINDOW_MS
+		);
+		const ipLimited = consumeRateLimit(
+			`forgot:ip:${requestIp}`,
+			FORGOT_PASSWORD_MAX_ATTEMPTS * 3,
+			RATE_LIMIT_WINDOW_MS
+		);
+
+		if (emailLimited || ipLimited) {
+			return res.status(429).json({ message: "Too many password reset attempts. Please try again later." });
+		}
+
+		const user = await Users.findOne({ workEmail: normalizedEmail }).select("+password");
+		if (!user) {
+			return res.status(200).json({ message: genericMessage });
+		}
+
+		const { token, tokenHash } = createPasswordResetToken();
+		const expiresAt = getPasswordResetExpiryDate(PASSWORD_RESET_TTL_HOURS);
+
+		await PasswordResetToken.deleteMany({ userId: user._id, used: false });
+		await PasswordResetToken.create({
+			userId: user._id,
+			tokenHash,
+			expiresAt,
+		});
+
+		const resetUrl = `${getResetBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+		await sendPasswordResetEmail({
+			to: user.workEmail,
+			name: user.name,
+			resetUrl,
+		});
+
+		await logActivity({
+			req: createLogRequestForUser(user),
+			action: "password.reset.request",
+			targetType: "auth",
+			targetId: user._id,
+			metadata: {
+				ip: requestIp,
+			},
+		});
+
+		return res.status(200).json({ message: genericMessage });
+	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.post("/reset-password/validate", async (req, res) => {
+	try {
+		const { token } = req.body;
+		if (!token || typeof token !== "string") {
+			return res.status(400).json({ valid: false, message: "token is required" });
+		}
+
+		const tokenHash = hashPasswordResetToken(token);
+		const resetToken = await PasswordResetToken.findOne({ tokenHash, used: false });
+		if (!resetToken) {
+			return res.status(200).json({ valid: false, message: "Token is invalid or expired" });
+		}
+
+		if (resetToken.expiresAt.getTime() < Date.now()) {
+			return res.status(200).json({ valid: false, message: "Token is invalid or expired" });
+		}
+
+		const user = await Users.findById(resetToken.userId);
+		if (!user) {
+			return res.status(200).json({ valid: false, message: "Token is invalid or expired" });
+		}
+
+		return res.status(200).json({
+			valid: true,
+			expiresInSeconds: Math.max(1, Math.floor((resetToken.expiresAt.getTime() - Date.now()) / 1000)),
+			workEmail: user.workEmail,
+		});
+	} catch (error) {
+		return res.status(500).json({ message: error.message });
+	}
+});
+
+router.post("/reset-password", async (req, res) => {
+	try {
+		const { token, newPassword } = req.body;
+		if (!token || typeof token !== "string" || !newPassword) {
+			return res.status(400).json({ message: "token and newPassword are required" });
+		}
+
+		if (String(newPassword).length < 8) {
+			return res.status(400).json({ message: "Password must be at least 8 characters long" });
+		}
+
+		const requestIp = getRequestIp(req);
+		const tokenHash = hashPasswordResetToken(token);
+		const tokenLimited = consumeRateLimit(
+			`reset:token:${tokenHash}`,
+			RESET_PASSWORD_MAX_ATTEMPTS,
+			RATE_LIMIT_WINDOW_MS
+		);
+		const ipLimited = consumeRateLimit(
+			`reset:ip:${requestIp}`,
+			RESET_PASSWORD_MAX_ATTEMPTS,
+			RATE_LIMIT_WINDOW_MS
+		);
+
+		if (tokenLimited || ipLimited) {
+			return res.status(429).json({ message: "Too many password reset attempts. Please try again later." });
+		}
+
+		const resetToken = await PasswordResetToken.findOne({ tokenHash, used: false });
+		if (!resetToken || resetToken.expiresAt.getTime() < Date.now()) {
+			return res.status(400).json({ message: "Token is invalid or expired" });
+		}
+
+		const user = await Users.findById(resetToken.userId).select("+password +refreshTokenHash +refreshTokenExpiresAt");
+		if (!user) {
+			return res.status(400).json({ message: "Token is invalid or expired" });
+		}
+
+		const isSamePassword = await bcrypt.compare(newPassword, user.password);
+		if (isSamePassword) {
+			return res.status(400).json({ message: "New password must be different from your current password" });
+		}
+
+		user.password = newPassword;
+		user.refreshTokenHash = null;
+		user.refreshTokenExpiresAt = null;
+
+		resetToken.used = true;
+		resetToken.usedAt = new Date();
+
+		await Promise.all([user.save(), resetToken.save()]);
+		await PasswordResetToken.deleteMany({ userId: user._id, used: false });
+
+		await logActivity({
+			req: createLogRequestForUser(user),
+			action: "password.reset.confirm",
+			targetType: "auth",
+			targetId: user._id,
+			metadata: {
+				ip: requestIp,
+			},
+		});
+
+		return res.status(200).json({ message: "Password reset successful. Please log in with your new password." });
 	} catch (error) {
 		return res.status(500).json({ message: error.message });
 	}

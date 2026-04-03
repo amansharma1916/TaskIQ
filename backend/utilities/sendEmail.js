@@ -61,3 +61,26 @@ export const sendEmail = async (to, subject, html) => {
     throw new Error(`Email delivery failed.${statusCode}${details} ${error.message || "Unknown error"}`.trim());
   }
 };
+
+export const sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
+  const subject = "Reset your TaskIQ password";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+      <h2 style="margin: 0 0 12px;">Password reset request</h2>
+      <p style="margin: 0 0 10px;">Hi ${name || "there"},</p>
+      <p style="margin: 0 0 14px;">We received a request to reset your TaskIQ password. Use the button below to set a new password.</p>
+      <p style="margin: 0 0 20px;">
+        <a
+          href="${resetUrl}"
+          style="display: inline-block; background: #0ea5e9; color: #ffffff; text-decoration: none; padding: 10px 16px; border-radius: 8px;"
+        >
+          Reset Password
+        </a>
+      </p>
+      <p style="margin: 0 0 10px;">This link expires soon and can only be used once.</p>
+      <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not request this, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  return sendEmail(to, subject, html);
+};

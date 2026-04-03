@@ -196,3 +196,65 @@ export const logoutSession = async (apiBase: string): Promise<void> => {
     clearAuthSession();
   }
 };
+
+type PasswordResetValidationResponse = {
+  valid: boolean;
+  message?: string;
+  workEmail?: string;
+  expiresInSeconds?: number;
+};
+
+const getApiBase = (): string => {
+  return String(import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+};
+
+export const requestPasswordReset = async (workEmail: string): Promise<{ message: string }> => {
+  const response = await fetch(`${getApiBase()}/api/auth/users/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ workEmail }),
+  });
+
+  const result = (await response.json().catch(() => null)) as { message?: string } | null;
+  if (!response.ok) {
+    throw new Error(result?.message || `Request failed: ${response.status}`);
+  }
+
+  return { message: result?.message || 'If an account exists for this email, a password reset link has been sent.' };
+};
+
+export const validatePasswordResetToken = async (token: string): Promise<PasswordResetValidationResponse> => {
+  const response = await fetch(`${getApiBase()}/api/auth/users/reset-password/validate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token }),
+  });
+
+  const result = (await response.json().catch(() => null)) as PasswordResetValidationResponse | null;
+  if (!response.ok) {
+    throw new Error(result?.message || `Validation failed: ${response.status}`);
+  }
+
+  return result ?? { valid: false, message: 'Token is invalid or expired' };
+};
+
+export const resetPasswordWithToken = async (token: string, newPassword: string): Promise<{ message: string }> => {
+  const response = await fetch(`${getApiBase()}/api/auth/users/reset-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+  const result = (await response.json().catch(() => null)) as { message?: string } | null;
+  if (!response.ok) {
+    throw new Error(result?.message || `Reset failed: ${response.status}`);
+  }
+
+  return { message: result?.message || 'Password reset successful. Please log in.' };
+};
