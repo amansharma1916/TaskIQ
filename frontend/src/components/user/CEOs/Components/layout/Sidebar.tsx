@@ -5,11 +5,14 @@ type SidebarProps = {
 	nav: DashboardData['nav']
 	activePanel: PanelId
 	profileMenuOpen: boolean
+	isMobileViewport: boolean
+	isMobileNavOpen: boolean
 	displayCompanyName: string
 	displayDesignation: string
 	displayUserInitials: string
 	displayUserName: string
 	onToggleProfileMenu: () => void
+	onCloseMobileNav: () => void
 	onOpenPreferences: () => void
 	onSignOut: () => void
 	onSwitchPanel: (panel: PanelId) => void
@@ -19,19 +22,45 @@ const Sidebar = ({
 	nav,
 	activePanel,
 	profileMenuOpen,
+	isMobileViewport,
+	isMobileNavOpen,
 	displayCompanyName,
 	displayDesignation,
 	displayUserInitials,
 	displayUserName,
 	onToggleProfileMenu,
+	onCloseMobileNav,
 	onOpenPreferences,
 	onSignOut,
 	onSwitchPanel,
 }: SidebarProps) => {
 	const roleSuffix = displayDesignation === 'CEO' ? 'Admin' : displayDesignation === 'Manager' ? 'Supervisor' : 'Employee'
+	const sidebarClassName = `ceo-sidebar${isMobileViewport ? ' mobile' : ''}${isMobileNavOpen ? ' mobile-open' : ''}`
+	const handleSwitchPanel = (panel: PanelId) => {
+		onSwitchPanel(panel)
+		if (isMobileViewport) {
+			onCloseMobileNav()
+		}
+	}
+	const handleOpenPreferences = () => {
+		onOpenPreferences()
+		if (isMobileViewport) {
+			onCloseMobileNav()
+		}
+	}
+	const handleSignOut = () => {
+		onSignOut()
+		if (isMobileViewport) {
+			onCloseMobileNav()
+		}
+	}
 
 	return (
-		<aside className="ceo-sidebar">
+		<aside
+			id="ceo-sidebar-nav"
+			className={sidebarClassName}
+			aria-hidden={isMobileViewport && !isMobileNavOpen}
+		>
 			<div className="ceo-logo-area">
 				<div className="ceo-logo">
 					Task<span>IQ</span>
@@ -49,7 +78,7 @@ const Sidebar = ({
 						<button
 							className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
 							key={item.id}
-							onClick={() => onSwitchPanel(item.id)}
+							onClick={() => handleSwitchPanel(item.id)}
 							type="button"
 						>
 							<span>{item.short}</span>
@@ -64,7 +93,7 @@ const Sidebar = ({
 						<button
 							className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
 							key={item.id}
-							onClick={() => onSwitchPanel(item.id)}
+							onClick={() => handleSwitchPanel(item.id)}
 							type="button"
 						>
 							<span>{item.short}</span>
@@ -80,7 +109,7 @@ const Sidebar = ({
 						<button
 							className={`ceo-nav-item ${activePanel === item.id ? 'active' : ''}`}
 							key={item.id}
-							onClick={() => onSwitchPanel(item.id)}
+							onClick={() => handleSwitchPanel(item.id)}
 							type="button"
 						>
 							<span>{item.short}</span>
@@ -103,10 +132,10 @@ const Sidebar = ({
 
 				{profileMenuOpen && (
 					<div className="ceo-profile-menu ceo-profile-menu-bottom">
-						<button onClick={onOpenPreferences} type="button">
+						<button onClick={handleOpenPreferences} type="button">
 							Settings
 						</button>
-						<button onClick={onSignOut} type="button" className="danger">
+						<button onClick={handleSignOut} type="button" className="danger">
 							Sign Out
 						</button>
 					</div>

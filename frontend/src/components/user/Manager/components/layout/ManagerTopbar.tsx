@@ -2,6 +2,9 @@ import type { ManagerPanelId } from '../../types/manager.types'
 
 type ManagerTopbarProps = {
 	activePanel: ManagerPanelId
+	isMobileViewport: boolean
+	isMobileNavOpen: boolean
+	onToggleMobileNav: () => void
 	onRefresh: () => void
 	onOpenUpdates: () => void
 	unreadUpdatesCount: number
@@ -18,10 +21,32 @@ const panelTitles: Record<ManagerPanelId, string> = {
 	settings: 'Settings',
 }
 
-const ManagerTopbar = ({ activePanel, onRefresh, onOpenUpdates, unreadUpdatesCount }: ManagerTopbarProps) => {
+const ManagerTopbar = ({
+	activePanel,
+	isMobileViewport,
+	isMobileNavOpen,
+	onToggleMobileNav,
+	onRefresh,
+	onOpenUpdates,
+	unreadUpdatesCount,
+}: ManagerTopbarProps) => {
 	return (
 		<header className="ceo-topbar">
-			<h1>{panelTitles[activePanel]}</h1>
+			<div className="ceo-topbar-title-wrap">
+				{isMobileViewport && (
+					<button
+						className="ceo-mobile-menu-btn"
+						type="button"
+						onClick={onToggleMobileNav}
+						aria-label="Toggle navigation menu"
+						aria-expanded={isMobileNavOpen}
+						aria-controls="manager-sidebar-nav"
+					>
+						☰
+					</button>
+				)}
+				<h1>{panelTitles[activePanel]}</h1>
+			</div>
 			<div className="ceo-topbar-right">
 				<button className="ceo-btn-outline" onClick={onRefresh} type="button">
 					Refresh

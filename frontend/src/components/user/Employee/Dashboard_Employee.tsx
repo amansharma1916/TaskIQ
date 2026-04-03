@@ -12,6 +12,8 @@ import TasksPanel_Employee from './components/panels/TasksPanel_Employee'
 import type { ManagerUpdateItem } from '../Manager/types/manager.types'
 import SettingsPanel from '../CEOs/Components/panels/SettingsPanel'
 
+const MOBILE_NAV_BREAKPOINT = 900
+
 const getInitials = (name?: string): string => {
   if (!name) {
     return 'EM'
@@ -31,6 +33,8 @@ const Dashboard_Employee = () => {
   const navigate = useNavigate()
   const apiBase = import.meta.env.VITE_BACKEND_URL ?? ''
   const [activePanel, setActivePanel] = useState<EmployeePanelId>('tasks')
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
 
   const {
     tasks,
@@ -95,22 +99,86 @@ const Dashboard_Employee = () => {
   }, [profileMenuOpen])
 
   useEffect(() => {
-    void loadEmployeeUpdates()
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const updateViewport = () => {
+      setIsMobileViewport(window.innerWidth <= MOBILE_NAV_BREAKPOINT)
+    }
+
+    updateViewport()
+    window.addEventListener('resize', updateViewport)
+
+    return () => {
+      window.removeEventListener('resize', updateViewport)
+    }
   }, [])
 
-  const onSignOut = async () => {
-    await logoutSession(apiBase)
-    navigate('/login')
-  }
+  useEffect(() => {
+    if (!isMobileViewport && isMobileNavOpen) {
+      setIsMobileNavOpen(false)
+    }
+  }, [isMobileNavOpen, isMobileViewport])
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      return
+    }
+
+    document.body.style.overflow = isMobileNavOpen ? 'hidden' : ''
+
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMobileNavOpen, isMobileViewport])
+
+  useEffect(() => {
+    if (!isMobileViewport || !isMobileNavOpen) {
+      return
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileNavOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isMobileNavOpen, isMobileViewport])
+
+  useEffect(() => {
+    void loadEmployeeUpdates()
+  }, [])
 
   const switchPanel = (panel: EmployeePanelId) => {
     setActivePanel(panel)
     setProfileMenuOpen(false)
+    setIsMobileNavOpen(false)
+  }
+
+  const handleOpenSettings = () => {
+    switchPanel('settings')
+    setIsMobileNavOpen(false)
+  }
+
+  const handleSignOut = async () => {
+    setProfileMenuOpen(false)
+    setIsMobileNavOpen(false)
+    await logoutSession(apiBase)
+    navigate('/login')
   }
 
   return (
-    <div className="ceo-dashboard-root">
-      <aside className="ceo-sidebar">
+    <div className={`ceo-dashboard-root ${isMobileViewport ? 'is-mobile' : ''}`}>
+      <aside
+        id="employee-sidebar-nav"
+        className={`ceo-sidebar${isMobileViewport ? ' mobile' : ''}${isMobileNavOpen ? ' mobile-open' : ''}`}
+        aria-hidden={isMobileViewport && !isMobileNavOpen}
+      >
         <div className="ceo-logo-area">
           <div className="ceo-logo">
             Task<span>IQ</span>
@@ -144,10 +212,10 @@ const Dashboard_Employee = () => {
         <div className="ceo-user-area" onClick={(event) => event.stopPropagation()}>
           {profileMenuOpen ? (
             <div className="ceo-profile-menu ceo-profile-menu-bottom">
-              <button type="button" onClick={() => switchPanel('settings')}>
+              <button type="button" onClick={handleOpenSettings}>
                 Settings
               </button>
-              <button type="button" className="danger" onClick={() => void onSignOut()}>
+              <button type="button" className="danger" onClick={() => void handleSignOut()}>
                 Sign out
               </button>
             </div>
@@ -166,9 +234,32 @@ const Dashboard_Employee = () => {
         </div>
       </aside>
 
+      {isMobileViewport && isMobileNavOpen ? (
+        <button
+          className="ceo-sidebar-backdrop"
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={() => setIsMobileNavOpen(false)}
+        />
+      ) : null}
+
       <main className="ceo-main">
         <header className="ceo-topbar">
-          <h1>Employee Dashboard</h1>
+          <div className="ceo-topbar-title-wrap">
+            {isMobileViewport ? (
+              <button
+                className="ceo-mobile-menu-btn"
+                type="button"
+                onClick={() => setIsMobileNavOpen((prev) => !prev)}
+                aria-label="Toggle navigation menu"
+                aria-expanded={isMobileNavOpen}
+                aria-controls="employee-sidebar-nav"
+              >
+                ☰
+              </button>
+            ) : null}
+            <h1>Employee Dashboard</h1>
+          </div>
           <div className="ceo-topbar-right">
             <button
               className="ceo-btn-outline"

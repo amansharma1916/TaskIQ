@@ -28,6 +28,8 @@ import { createUpdate as createProjectUpdate, markUpdateRead } from '../../../se
 import type { ApiProjectStatus, ApiTaskStatus } from '../CEOs/types/api.types'
 import type { ManagerPanelId, ManagerTaskQuery } from './types/manager.types'
 
+const MOBILE_NAV_BREAKPOINT = 900
+
 const getInitials = (name?: string): string => {
   if (!name) {
     return 'MG'
@@ -45,6 +47,8 @@ const Dashboard_Manager = () => {
   const navigate = useNavigate()
   const apiBase = import.meta.env.VITE_BACKEND_URL ?? ''
   const [activePanel, setActivePanel] = useState<ManagerPanelId>('projects')
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [isProjectMutating, setIsProjectMutating] = useState(false)
   const [projectActionError, setProjectActionError] = useState('')
@@ -69,6 +73,58 @@ const Dashboard_Manager = () => {
       window.clearTimeout(timeoutId)
     }
   }, [actionAlert])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const updateViewport = () => {
+      setIsMobileViewport(window.innerWidth <= MOBILE_NAV_BREAKPOINT)
+    }
+
+    updateViewport()
+    window.addEventListener('resize', updateViewport)
+
+    return () => {
+      window.removeEventListener('resize', updateViewport)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isMobileViewport && isMobileNavOpen) {
+      setIsMobileNavOpen(false)
+    }
+  }, [isMobileNavOpen, isMobileViewport])
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      return
+    }
+
+    document.body.style.overflow = isMobileNavOpen ? 'hidden' : ''
+
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMobileNavOpen, isMobileViewport])
+
+  useEffect(() => {
+    if (!isMobileViewport || !isMobileNavOpen) {
+      return
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileNavOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isMobileNavOpen, isMobileViewport])
   const {
     projects,
     tasks,
@@ -108,10 +164,12 @@ const Dashboard_Manager = () => {
   const switchPanel = (panel: ManagerPanelId) => {
     setActivePanel(panel)
     setProfileMenuOpen(false)
+    setIsMobileNavOpen(false)
   }
 
   const handleProfileSignOut = () => {
     setProfileMenuOpen(false)
+    setIsMobileNavOpen(false)
     void onSignOut()
   }
 
@@ -400,24 +458,48 @@ const Dashboard_Manager = () => {
     }
   }
 
+  const handleOpenPreferences = () => {
+    switchPanel('settings')
+    setIsMobileNavOpen(false)
+  }
+
+  const handleToggleMobileNav = () => {
+    setIsMobileNavOpen((prev) => !prev)
+  }
+
   return (
-    <div className="ceo-dashboard-root">
+    <div className={`ceo-dashboard-root ${isMobileViewport ? 'is-mobile' : ''}`}>
       <ManagerSidebar
         activePanel={activePanel}
         profileMenuOpen={profileMenuOpen}
+        isMobileViewport={isMobileViewport}
+        isMobileNavOpen={isMobileNavOpen}
         displayCompanyName={displayCompanyName}
         displayDesignation={displayDesignation}
         displayUserName={displayUserName}
         displayUserInitials={displayUserInitials}
         onToggleProfileMenu={() => setProfileMenuOpen((prev) => !prev)}
-        onOpenPreferences={() => switchPanel('settings')}
+        onCloseMobileNav={() => setIsMobileNavOpen(false)}
+        onOpenPreferences={handleOpenPreferences}
         onSwitchPanel={switchPanel}
         onSignOut={handleProfileSignOut}
       />
 
+      {isMobileViewport && isMobileNavOpen ? (
+        <button
+          className="ceo-sidebar-backdrop"
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={() => setIsMobileNavOpen(false)}
+        />
+      ) : null}
+
       <main className="ceo-main">
         <ManagerTopbar
           activePanel={activePanel}
+          isMobileViewport={isMobileViewport}
+          isMobileNavOpen={isMobileNavOpen}
+          onToggleMobileNav={handleToggleMobileNav}
           onRefresh={() => void reloadAll()}
           onOpenUpdates={() => switchPanel('updates')}
           unreadUpdatesCount={updatesUnreadCount}
