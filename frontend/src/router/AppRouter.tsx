@@ -3,6 +3,8 @@ import LandingPage from '../components/public/LandingPage'
 import RegisterPage from '../components/public/RegisterPage'
 import LoginPage from '../components/public/LoginPage'
 import InviteRegisterPage from '../components/public/InviteRegisterPage'
+import ForgotPasswordPage from '../components/public/ForgotPasswordPage'
+import PasswordResetPage from '../components/public/PasswordResetPage'
 import Home from '../components/private/Home'
 import ProjectDetails from '../components/user/CEOs/ProjectDetails'
 import Dashboard_CEO from '../components/user/CEOs/Dashboard_CEO'
@@ -26,6 +28,14 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPasswordPage />,
+  },
+  {
+    path: '/reset-password',
+    element: <PasswordResetPage />,
   },
   {
     path: '/home',

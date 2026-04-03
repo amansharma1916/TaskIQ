@@ -118,9 +118,9 @@ const LoginForm = () => {
             />
             Remember me
           </label>
-          <a className="login-link" href="#">
+          <Link className="login-link" to="/forgot-password">
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         <button 
