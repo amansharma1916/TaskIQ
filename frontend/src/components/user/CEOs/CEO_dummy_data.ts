@@ -135,7 +135,7 @@ export const ceoDashboardData: DashboardData = {
 	],
 	projects: [
 		{
-			id: 'proj1',
+			id: 'project1',
 			name: 'TaskIQ App MVP',
 			description: 'Core platform build with auth, tasks, teams, and dashboard modules.',
 			due: 'Mar 30',
