@@ -22,8 +22,8 @@
 .manager-project-modal select,
 .manager-project-modal textarea {
 	width: 100%;
-	border: 1px solid rgba(255, 255, 255, 0.14);
-	background: linear-gradient(180deg, rgba(15, 24, 54, 0.95), rgba(10, 16, 38, 0.95));
+	border: 1px solid var(--border);
+	background: var(--bg3);
 	border-radius: 10px;
 	padding: 10px 12px;
 	color: var(--white);
@@ -42,7 +42,7 @@
 .manager-project-filters input::placeholder,
 .manager-project-modal input::placeholder,
 .manager-project-modal textarea::placeholder {
-	color: rgba(240, 244, 255, 0.45);
+	color: var(--muted);
 }
 
 .manager-project-filters input:focus,
@@ -68,8 +68,8 @@
 
 .manager-project-filters select option,
 .manager-project-modal select option {
-	background: #0d1734;
-	color: #f3f7ff;
+	background: var(--bg2);
+	color: var(--white);
 }
 
 .manager-filter-chip-row {
@@ -80,8 +80,8 @@
 }
 
 .manager-filter-chip {
-	border: 1px solid rgba(0, 212, 255, 0.35);
-	background: rgba(0, 212, 255, 0.12);
+	border: 1px solid rgba(0, 212, 255, 0.24);
+	background: rgba(0, 212, 255, 0.1);
 	color: var(--cyan);
 	font-family: inherit;
 	font-size: 0.75rem;
@@ -92,8 +92,8 @@
 }
 
 .manager-filter-chip:hover {
-	border-color: rgba(0, 212, 255, 0.58);
-	background: rgba(0, 212, 255, 0.2);
+	border-color: rgba(0, 212, 255, 0.42);
+	background: rgba(0, 212, 255, 0.16);
 	transform: translateY(-1px);
 }
 
@@ -105,7 +105,7 @@
 	padding: 14px;
 	border: 1px dashed var(--border);
 	border-radius: 10px;
-	background: rgba(255, 255, 255, 0.02);
+	background: var(--glass);
 }
 
 .manager-state-empty p {
@@ -217,7 +217,7 @@
 	padding: 12px;
 	border: 1px dashed var(--border);
 	border-radius: 10px;
-	background: rgba(255, 255, 255, 0.02);
+	background: var(--glass);
 	color: var(--muted);
 	font-size: 0.85rem;
 }
@@ -229,19 +229,19 @@
 	border: 1px solid var(--border);
 	border-radius: 10px;
 	padding: 10px;
-	background: rgba(255, 255, 255, 0.02);
+	background: var(--glass);
 	cursor: pointer;
 	transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .ptm-team-card:hover {
-	border-color: rgba(0, 212, 255, 0.46);
+	border-color: rgba(0, 212, 255, 0.36);
 	background: rgba(0, 212, 255, 0.08);
 }
 
 .ptm-team-card.selected {
-	border-color: rgba(0, 212, 255, 0.62);
-	background: rgba(0, 212, 255, 0.14);
+	border-color: rgba(0, 212, 255, 0.52);
+	background: rgba(0, 212, 255, 0.12);
 }
 
 .ptm-team-card input {
@@ -249,9 +249,9 @@
 	margin-top: 1px;
 	width: 16px;
 	height: 16px;
-	border: 1px solid rgba(255, 255, 255, 0.35);
+	border: 1px solid var(--border);
 	border-radius: 4px;
-	background: rgba(255, 255, 255, 0.04);
+	background: var(--bg2);
 	position: relative;
 	cursor: pointer;
 }
@@ -268,7 +268,7 @@
 	top: 1px;
 	width: 4px;
 	height: 8px;
-	border: solid rgba(8, 14, 36, 1);
+	border: solid var(--bg);
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg);
 }

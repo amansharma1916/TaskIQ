@@ -7,9 +7,9 @@
 	font-size: 0.76rem;
 	padding: 4px 10px;
 	border-radius: 999px;
-	color: #93c5fd;
-	border: 1px solid rgba(147, 197, 253, 0.35);
-	background: rgba(37, 99, 235, 0.15);
+	color: var(--cyan);
+	border: 1px solid rgba(0, 212, 255, 0.24);
+	background: rgba(0, 212, 255, 0.1);
 }
 
 .manager-updates-composer {
@@ -18,7 +18,7 @@
 	padding: 14px;
 	border: 1px solid var(--border);
 	border-radius: 12px;
-	background: linear-gradient(180deg, rgba(11, 17, 39, 0.95), rgba(16, 21, 45, 0.84));
+	background: var(--bg2);
 }
 
 .manager-updates-form-grid {
@@ -41,7 +41,7 @@
 	width: 100%;
 	border: 1px solid var(--border);
 	border-radius: 8px;
-	background: rgba(9, 13, 29, 0.9);
+	background: var(--bg3);
 	color: var(--white);
 	padding: 8px 10px;
 	font-family: inherit;
@@ -72,7 +72,7 @@
 
 .manager-updates-pill {
 	border: 1px solid var(--border);
-	background: rgba(12, 18, 38, 0.92);
+	background: var(--glass);
 	color: var(--muted);
 	border-radius: 999px;
 	padding: 4px 10px;
@@ -81,9 +81,9 @@
 }
 
 .manager-updates-pill.active {
-	color: #67e8f9;
-	border-color: rgba(103, 232, 249, 0.45);
-	background: rgba(34, 211, 238, 0.12);
+	color: var(--cyan);
+	border-color: rgba(0, 212, 255, 0.4);
+	background: rgba(0, 212, 255, 0.12);
 }
 
 .manager-updates-pill.readonly {
@@ -112,7 +112,7 @@
 
 .manager-updates-team-chip {
 	border: 1px solid var(--border);
-	background: rgba(12, 18, 38, 0.95);
+	background: var(--bg2);
 	color: var(--muted);
 	border-radius: 8px;
 	padding: 6px 10px;
@@ -121,9 +121,9 @@
 }
 
 .manager-updates-team-chip.active {
-	color: #facc15;
-	border-color: rgba(250, 204, 21, 0.5);
-	background: rgba(250, 204, 21, 0.14);
+	color: var(--yellow);
+	border-color: rgba(250, 204, 21, 0.28);
+	background: rgba(250, 204, 21, 0.12);
 }
 
 .manager-updates-form-error {
@@ -146,7 +146,7 @@
 	border: 1px solid var(--border);
 	border-radius: 12px;
 	padding: 12px;
-	background: rgba(10, 14, 31, 0.82);
+	background: var(--bg2);
 }
 
 .manager-update-item.unread {
@@ -194,33 +194,33 @@
 }
 
 .manager-update-priority.low {
-	color: #86efac;
-	background: rgba(22, 163, 74, 0.16);
-	border-color: rgba(134, 239, 172, 0.34);
+	color: var(--green);
+	background: rgba(22, 163, 74, 0.12);
+	border-color: rgba(22, 163, 74, 0.24);
 }
 
 .manager-update-priority.medium {
-	color: #facc15;
-	background: rgba(202, 138, 4, 0.16);
-	border-color: rgba(250, 204, 21, 0.34);
+	color: var(--yellow);
+	background: rgba(202, 138, 4, 0.12);
+	border-color: rgba(202, 138, 4, 0.24);
 }
 
 .manager-update-priority.high {
-	color: #fda4af;
-	background: rgba(190, 24, 93, 0.2);
-	border-color: rgba(253, 164, 175, 0.36);
+	color: var(--red);
+	background: rgba(190, 24, 93, 0.14);
+	border-color: rgba(190, 24, 93, 0.24);
 }
 
 .manager-update-pinned {
-	color: #fef08a;
-	border-color: rgba(234, 179, 8, 0.38);
-	background: rgba(234, 179, 8, 0.18);
+	color: var(--cyan);
+	border-color: rgba(0, 212, 255, 0.26);
+	background: rgba(0, 212, 255, 0.12);
 }
 
 .manager-update-unread-dot {
-	color: #93c5fd;
-	border-color: rgba(96, 165, 250, 0.4);
-	background: rgba(29, 78, 216, 0.2);
+	color: var(--cyan);
+	border-color: rgba(0, 212, 255, 0.26);
+	background: rgba(0, 212, 255, 0.12);
 }
 
 .manager-update-item p {

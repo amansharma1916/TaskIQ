@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import ThemeToggle from '../../shared/ThemeToggle'
 
 const LoginNavbar = () => {
   return (
@@ -13,6 +14,7 @@ const LoginNavbar = () => {
         <a href="#">Docs</a>
       </div>
       <div className="nav-cta">
+        <ThemeToggle />
         <Link className="btn-ghost" to="/register">
           Create Account
         </Link>

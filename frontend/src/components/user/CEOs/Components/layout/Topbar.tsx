@@ -1,5 +1,6 @@
 import { pageTitles } from '../../CEO_dummy_data'
 import type { PanelId } from '../../types/dashboard.types'
+import ThemeToggle from '../../../../shared/ThemeToggle'
 
 type TopbarProps = {
 	activePanel: PanelId
@@ -40,6 +41,7 @@ const Topbar = ({
 				<h1>{pageTitles[activePanel]}</h1>
 			</div>
 			<div className="ceo-topbar-right">
+				<ThemeToggle />
 				<button className="ceo-btn-outline" onClick={onInviteMember} type="button">
 					Invite Member
 				</button>

@@ -1,19 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
-.ceo-dashboard-root {
-	--bg: #080c1a;
-	--bg2: #0d1228;
-	--bg3: #111830;
-	--cyan: #00d4ff;
-	--purple: #7b5ea7;
-	--green: #4ade80;
-	--yellow: #fbbf24;
-	--red: #f87171;
-	--white: #f0f4ff;
-	--muted: #7a85a3;
-	--border: rgba(255, 255, 255, 0.08);
-	--glass: rgba(255, 255, 255, 0.04);
 
+.ceo-dashboard-root {
 	min-height: 100vh;
 	display: flex;
 	background: radial-gradient(circle at top right, rgba(0, 212, 255, 0.08), transparent 45%),
@@ -36,7 +24,7 @@
 	flex-direction: column;
 	overflow: hidden;
 	border-right: 1px solid var(--border);
-	background: rgba(13, 18, 40, 0.88);
+	background: var(--glass);
 	backdrop-filter: blur(18px);
 }
 
@@ -78,7 +66,7 @@
 	z-index: 15;
 	border-radius: 12px;
 	border: 1px solid var(--border);
-	background: var(--bg3);
+	background: var(--bg2);
 	overflow: hidden;
 }
 
@@ -243,7 +231,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: 0 24px;
-	background: rgba(8, 12, 26, 0.75);
+	background: var(--glass);
 	backdrop-filter: blur(14px);
 }
 
@@ -352,7 +340,7 @@
 .ceo-team-card,
 .ceo-project-card {
 	border: 1px solid var(--border);
-	background: rgba(13, 18, 40, 0.82);
+	background: var(--bg2);
 	border-radius: 14px;
 	padding: 18px;
 }
@@ -723,7 +711,7 @@
 .ceo-settings-content {
 	border: 1px solid var(--border);
 	border-radius: 14px;
-	background: rgba(13, 18, 40, 0.82);
+	background: var(--bg2);
 }
 
 .ceo-settings-nav {
@@ -1262,7 +1250,7 @@
 
 .ceo-list-card {
 	border: 1px solid var(--border);
-	background: rgba(13, 18, 40, 0.82);
+	background: var(--bg2);
 	border-radius: 14px;
 	padding: 8px 18px;
 }

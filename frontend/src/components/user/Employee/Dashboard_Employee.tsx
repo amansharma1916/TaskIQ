@@ -5,6 +5,7 @@ import '../../../styles/user/CEOs/TaskPanel.css'
 import '../../../styles/user/Employee/Dashboard_Employee.css'
 import '../../../styles/user/Employee/EmployeeUpdatesCard.css'
 import { getAuthUser, logoutSession } from '../../../services/auth'
+import ThemeToggle from '../../shared/ThemeToggle'
 import { getUpdatesFeed, getUpdatesUnreadCount, markUpdateRead } from '../../../services/updates'
 import type { EmployeePanelId } from './types/employee.types'
 import { useEmployeeDashboardData } from './hooks/useEmployeeDashboardData'
@@ -261,6 +262,7 @@ const Dashboard_Employee = () => {
             <h1>Employee Dashboard</h1>
           </div>
           <div className="ceo-topbar-right">
+            <ThemeToggle />
             <button
               className="ceo-btn-outline"
               type="button"

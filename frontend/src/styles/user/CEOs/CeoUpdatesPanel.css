@@ -7,18 +7,18 @@
 	font-size: 0.78rem;
 	padding: 4px 11px;
 	border-radius: 999px;
-	border: 1px solid rgba(191, 219, 254, 0.32);
-	background: rgba(37, 99, 235, 0.14);
-	color: #bfdbfe;
+	border: 1px solid rgba(0, 212, 255, 0.22);
+	background: rgba(0, 212, 255, 0.1);
+	color: var(--cyan);
 }
 
 .ceo-updates-composer {
-	border: 1px solid rgba(148, 163, 184, 0.24);
+	border: 1px solid var(--border);
 	border-radius: 12px;
 	padding: 14px;
 	display: grid;
 	gap: 10px;
-	background: linear-gradient(180deg, rgba(16, 24, 46, 0.94), rgba(18, 24, 43, 0.78));
+	background: var(--bg2);
 }
 
 .ceo-updates-grid {
@@ -32,7 +32,7 @@
 	display: grid;
 	gap: 6px;
 	font-size: 0.78rem;
-	color: #c9d2f0;
+	color: var(--muted);
 }
 
 .ceo-updates-grid input,
@@ -40,10 +40,10 @@
 .ceo-updates-body textarea,
 .ceo-update-item input,
 .ceo-update-item textarea {
-	border: 1px solid rgba(148, 163, 184, 0.3);
+	border: 1px solid var(--border);
 	border-radius: 8px;
-	background: rgba(9, 14, 30, 0.95);
-	color: #f5f7ff;
+	background: var(--bg3);
+	color: var(--white);
 	padding: 8px 10px;
 	font-size: 0.84rem;
 	font-family: inherit;
@@ -70,9 +70,9 @@
 
 .ceo-updates-pill,
 .ceo-updates-team-pill {
-	border: 1px solid rgba(148, 163, 184, 0.28);
-	background: rgba(15, 22, 42, 0.92);
-	color: #a9b6da;
+	border: 1px solid var(--border);
+	background: var(--glass);
+	color: var(--muted);
 	padding: 5px 10px;
 	border-radius: 999px;
 	font-size: 0.74rem;
@@ -81,9 +81,9 @@
 
 .ceo-updates-pill.active,
 .ceo-updates-team-pill.active {
-	border-color: rgba(56, 189, 248, 0.5);
-	background: rgba(56, 189, 248, 0.18);
-	color: #bae6fd;
+	border-color: rgba(0, 212, 255, 0.45);
+	background: rgba(0, 212, 255, 0.14);
+	color: var(--cyan);
 }
 
 .ceo-updates-pin {
@@ -116,15 +116,15 @@
 }
 
 .ceo-update-item {
-	border: 1px solid rgba(148, 163, 184, 0.24);
+	border: 1px solid var(--border);
 	border-radius: 12px;
 	padding: 12px;
-	background: rgba(11, 16, 31, 0.82);
+	background: var(--bg2);
 }
 
 .ceo-update-item.unread {
-	border-color: rgba(59, 130, 246, 0.46);
-	box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.14);
+	border-color: rgba(0, 212, 255, 0.42);
+	box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.12);
 }
 
 .ceo-update-head {
@@ -144,7 +144,7 @@
 	gap: 8px;
 	flex-wrap: wrap;
 	font-size: 0.73rem;
-	color: #a9b6da;
+	color: var(--muted);
 	margin-top: 5px;
 }
 
@@ -165,34 +165,34 @@
 }
 
 .ceo-update-priority.low {
-	background: rgba(34, 197, 94, 0.15);
-	color: #86efac;
-	border-color: rgba(134, 239, 172, 0.38);
+	background: rgba(34, 197, 94, 0.12);
+	color: var(--green);
+	border-color: rgba(34, 197, 94, 0.24);
 }
 
 .ceo-update-priority.medium {
-	background: rgba(250, 204, 21, 0.15);
-	color: #fde047;
-	border-color: rgba(250, 204, 21, 0.4);
+	background: rgba(250, 204, 21, 0.12);
+	color: var(--yellow);
+	border-color: rgba(250, 204, 21, 0.24);
 }
 
 .ceo-update-priority.high {
-	background: rgba(244, 63, 94, 0.18);
-	color: #fda4af;
-	border-color: rgba(253, 164, 175, 0.4);
+	background: rgba(244, 63, 94, 0.14);
+	color: var(--red);
+	border-color: rgba(244, 63, 94, 0.26);
 }
 
 .ceo-update-pinned {
-	background: rgba(99, 102, 241, 0.18);
-	color: #c7d2fe;
-	border-color: rgba(199, 210, 254, 0.35);
+	background: rgba(99, 102, 241, 0.12);
+	color: var(--cyan);
+	border-color: rgba(99, 102, 241, 0.24);
 }
 
 .ceo-update-item p {
 	margin: 10px 0;
 	line-height: 1.5;
 	font-size: 0.88rem;
-	color: #e2e8f0;
+	color: var(--white);
 }
 
 .ceo-update-foot {
@@ -208,7 +208,7 @@
 	gap: 8px;
 	flex-wrap: wrap;
 	font-size: 0.72rem;
-	color: #9aa8cf;
+	color: var(--muted);
 }
 
 .ceo-update-actions {
@@ -223,9 +223,9 @@
 }
 
 .ceo-updates-load {
-	border: 1px solid rgba(148, 163, 184, 0.35);
+	border: 1px solid var(--border);
 	background: transparent;
-	color: #a9b6da;
+	color: var(--muted);
 	padding: 7px 18px;
 	border-radius: 8px;
 	font-size: 0.8rem;

@@ -1,4 +1,5 @@
 import type { ManagerPanelId } from '../../types/manager.types'
+import ThemeToggle from '../../../../shared/ThemeToggle'
 
 type ManagerTopbarProps = {
 	activePanel: ManagerPanelId
@@ -48,6 +49,7 @@ const ManagerTopbar = ({
 				<h1>{panelTitles[activePanel]}</h1>
 			</div>
 			<div className="ceo-topbar-right">
+				<ThemeToggle />
 				<button className="ceo-btn-outline" onClick={onRefresh} type="button">
 					Refresh
 				</button>
