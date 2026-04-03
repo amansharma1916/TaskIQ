@@ -108,11 +108,15 @@ const mapProgressTone = (value: number): ProgressItem['tone'] => {
 	return 'yellow'
 }
 
+const MOBILE_NAV_BREAKPOINT = 900
+
 const Dashboard_CEO = () => {
 	const navigate = useNavigate()
 	const apiBase = import.meta.env.VITE_BACKEND_URL ?? ''
 	const [activePanel, setActivePanel] = useState<PanelId>('dashboard')
 	const [openModal, setOpenModal] = useState<ModalId | null>(null)
+	const [isMobileViewport, setIsMobileViewport] = useState(false)
+	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
 	const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 	const [teamsData, setTeamsData] = useState(ceoDashboardData.teams)
 	const [membersData, setMembersData] = useState(ceoDashboardData.members)
@@ -428,6 +432,58 @@ const Dashboard_CEO = () => {
 		void fetchTasksData(projectsData[0]?.id)
 	}, [fetchTasksData, projectsData])
 
+	useEffect(() => {
+		if (typeof window === 'undefined') {
+			return
+		}
+
+		const updateViewport = () => {
+			setIsMobileViewport(window.innerWidth <= MOBILE_NAV_BREAKPOINT)
+		}
+
+		updateViewport()
+		window.addEventListener('resize', updateViewport)
+
+		return () => {
+			window.removeEventListener('resize', updateViewport)
+		}
+	}, [])
+
+	useEffect(() => {
+		if (!isMobileViewport && isMobileNavOpen) {
+			setIsMobileNavOpen(false)
+		}
+	}, [isMobileNavOpen, isMobileViewport])
+
+	useEffect(() => {
+		if (!isMobileViewport) {
+			return
+		}
+
+		document.body.style.overflow = isMobileNavOpen ? 'hidden' : ''
+
+		return () => {
+			document.body.style.overflow = ''
+		}
+	}, [isMobileNavOpen, isMobileViewport])
+
+	useEffect(() => {
+		if (!isMobileViewport || !isMobileNavOpen) {
+			return
+		}
+
+		const handleEscape = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				setIsMobileNavOpen(false)
+			}
+		}
+
+		document.addEventListener('keydown', handleEscape)
+		return () => {
+			document.removeEventListener('keydown', handleEscape)
+		}
+	}, [isMobileNavOpen, isMobileViewport])
+
 	const onlineMembers = membersData.slice(0, 4)
 	const selectedTeamForRevoke = selectedTeamIdForRevoke
 		? teamsData.find((team) => team.id === selectedTeamIdForRevoke) ?? null
@@ -679,10 +735,12 @@ const Dashboard_CEO = () => {
 		setActivePanel(panel)
 		setProfileMenuOpen(false)
 		setTeamOptionsOpenFor(null)
+		setIsMobileNavOpen(false)
 	}
 
 	const openModalById = (modalId: ModalId, presetEntityId?: string) => {
 		setProfileMenuOpen(false)
+		setIsMobileNavOpen(false)
 		if (modalId === 'createTeam') {
 			setCreateTeamForm({ teamName: '', teamDescription: '', teamTags: '' })
 			setCreateTeamError('')
@@ -1322,28 +1380,44 @@ const Dashboard_CEO = () => {
 
 	const handleProfileSignOut = () => {
 		setProfileMenuOpen(false)
+		setIsMobileNavOpen(false)
 		void handleSignOut()
 	}
 
 	return (
-		<div className="ceo-dashboard-root">
+		<div className={`ceo-dashboard-root ${isMobileViewport ? 'is-mobile' : ''}`}>
 			<Sidebar
 				nav={dynamicNav}
 				activePanel={activePanel}
 				profileMenuOpen={profileMenuOpen}
+				isMobileViewport={isMobileViewport}
+				isMobileNavOpen={isMobileNavOpen}
 				displayCompanyName={displayCompanyName}
 				displayDesignation={displayDesignation}
 				displayUserInitials={displayUserInitials}
 				displayUserName={displayUserName}
 				onToggleProfileMenu={() => setProfileMenuOpen((prev) => !prev)}
+				onCloseMobileNav={() => setIsMobileNavOpen(false)}
 				onOpenPreferences={() => switchPanel('settings')}
 				onSignOut={handleProfileSignOut}
 				onSwitchPanel={switchPanel}
 			/>
 
+			{isMobileViewport && isMobileNavOpen && (
+				<button
+					className="ceo-sidebar-backdrop"
+					type="button"
+					aria-label="Close navigation menu"
+					onClick={() => setIsMobileNavOpen(false)}
+				/>
+			)}
+
 			<main className="ceo-main">
 				<Topbar
 					activePanel={activePanel}
+					isMobileViewport={isMobileViewport}
+					isMobileNavOpen={isMobileNavOpen}
+					onToggleMobileNav={() => setIsMobileNavOpen((prev) => !prev)}
 					onInviteMember={() => openModalById('invite')}
 					onCreateProject={() => openModalById('createProject')}
 					onOpenUpdates={() => switchPanel('updates')}

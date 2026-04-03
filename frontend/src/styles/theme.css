@@ -1,0 +1,88 @@
+:root {
+	--bg: #f7f9fc;
+	--bg2: #ffffff;
+	--bg3: #eef3f9;
+	--cyan: #0f9bd7;
+	--cyan2: #0b7fb3;
+	--purple: #7b5ea7;
+	--green: #16a34a;
+	--yellow: #ca8a04;
+	--red: #dc2626;
+	--white: #0f172a;
+	--muted: #64748b;
+	--border: rgba(15, 23, 42, 0.12);
+	--glass: rgba(255, 255, 255, 0.78);
+	--glass-border: rgba(148, 163, 184, 0.22);
+	--theme-toggle-bg: rgba(15, 23, 42, 0.04);
+	--theme-toggle-hover: rgba(15, 23, 42, 0.08);
+	--theme-toggle-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme='dark'] {
+	--bg: #050814;
+	--bg2: #0b1020;
+	--bg3: #11182d;
+	--cyan: #00d4ff;
+	--cyan2: #00a8cc;
+	--purple: #8b6fb7;
+	--green: #4ade80;
+	--yellow: #fbbf24;
+	--red: #f87171;
+	--white: #f0f4ff;
+	--muted: #91a0c0;
+	--border: rgba(255, 255, 255, 0.08);
+	--glass: rgba(255, 255, 255, 0.04);
+	--glass-border: rgba(255, 255, 255, 0.08);
+	--theme-toggle-bg: rgba(255, 255, 255, 0.05);
+	--theme-toggle-hover: rgba(255, 255, 255, 0.09);
+	--theme-toggle-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+}
+
+html {
+	color-scheme: light;
+}
+
+html[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+body {
+	background: var(--bg);
+	color: var(--white);
+	transition: background-color 180ms ease, color 180ms ease;
+}
+
+.theme-toggle-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border-radius: 999px;
+	border: 1px solid var(--glass-border);
+	background: var(--theme-toggle-bg);
+	color: var(--white);
+	font: inherit;
+	font-size: 0.88rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+	box-shadow: var(--theme-toggle-shadow);
+}
+
+.theme-toggle-button:hover {
+	background: var(--theme-toggle-hover);
+	border-color: var(--cyan);
+	transform: translateY(-1px);
+}
+
+.theme-toggle-label {
+	color: var(--muted);
+	font-size: 0.76rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.theme-toggle-value {
+	color: var(--white);
+}

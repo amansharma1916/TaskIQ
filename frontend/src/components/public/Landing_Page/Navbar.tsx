@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import ThemeToggle from '../../shared/ThemeToggle'
 
 const Navbar = () => {
   const navigate = useNavigate()
@@ -13,6 +14,7 @@ const Navbar = () => {
         <a href="#">Docs</a>
       </div>
       <div className="nav-cta">
+        <ThemeToggle />
         <button className="btn-ghost" type="button" onClick={() => navigate('/login')}>
           Log In
         </button>
