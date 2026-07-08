@@ -78,7 +78,6 @@ const RegisterForm = () => {
         teamSize: '',
         password: '',
       });
-      console.log('Registration successful:', result);
       setTimeout(() => {
         navigate(getDashboardRouteForRole(session.user.role));
       }, 1200);

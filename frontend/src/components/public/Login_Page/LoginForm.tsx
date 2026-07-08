@@ -58,7 +58,6 @@ const LoginForm = () => {
       }
 
       setSuccessMessage('Login successful! Redirecting...')
-      console.log('Login successful:', result)
 
       const session = saveAuthSession(result ?? {})
       
